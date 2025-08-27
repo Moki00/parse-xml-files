@@ -1,3 +1,4 @@
+import pandas as pd
 import lxml.etree as ET
 import glob
 import csv
@@ -175,7 +176,7 @@ CHECKS_TO_PERFORM = [
 ]
 
 """CHECKS_TO_PERFORM run against a single XML file and writes any discrepancies to the CSV writer."""
-def check_xml_file(filepath, writer):
+def check_xml_file(filepath, report_rows):
     try:
         parser = ET.XMLParser(remove_blank_text=True, resolve_entities=False)
         tree = ET.parse(filepath, parser)
@@ -188,7 +189,7 @@ def check_xml_file(filepath, writer):
             parents = root.xpath(group['base_xpath'])
 
             if not parents:
-                writer.writerow([filename, group_name, "Parent Section Not Found", "N/A", "N/A"])
+                report_rows.append([filename, group_name, "Parent Section Not Found", "N/A", "N/A"])
                 continue
 
             for parent in parents:
@@ -196,34 +197,45 @@ def check_xml_file(filepath, writer):
                     field_elements = parent.xpath(f".//Field[@Name='{field_name}']")
 
                     if not field_elements:
-                        writer.writerow([filename, f"{group_name} - {field_name}", "Setting Not Found", expected_value, "N/A"])
+                        report_rows.append([filename, f"{group_name} - {field_name}", "Setting Not Found", expected_value, "N/A"])
                         continue
 
                     actual_value = field_elements[0].text or ""
 
                     if actual_value != expected_value:
-                        writer.writerow([filename, f"{group_name} - {field_name}", "Incorrect Value", expected_value, actual_value])
+                        report_rows.append([filename, f"{group_name} - {field_name}", "Incorrect Value", expected_value, actual_value])
                         
     except ET.XMLSyntaxError:
-        writer.writerow([os.path.basename(filepath), "File Error", "Could not parse XML", "N/A", "N/A"])
+        report_rows.append([os.path.basename(filepath), "File Error", "Could not parse XML", "N/A", "N/A"])
 
 def main():
+    print("Starting check...")
     """Finds all XML files and generates a CSV report for any discrepancies."""
     xml_files = glob.glob('*.xml')
+    total_files = len(xml_files)
+
     if not xml_files:
         print("No .xml files found in this directory.")
         return
 
-    report_filename = 'report.csv'
-    print(f"Found {len(xml_files)} XML files. Checking settings...")
+    report_filename = 'report.xlsx'
+    print(f"Found {total_files} XML files. Checking settings...")
 
-    with open(report_filename, 'w', newline='') as csvfile:
-        writer = csv.writer(csvfile)
-        writer.writerow(['Filename', 'Setting', 'Issue', 'Expected Value', 'Actual Value'])
+    report_rows = []
 
-        for filepath in xml_files:
-            check_xml_file(filepath, writer)
-
+    for i, filepath in enumerate(xml_files):
+        print(f"Processing file {i+1}/{total_files}: {os.path.basename(filepath)}")
+        check_xml_file(filepath, report_rows)
+    
+    if not report_rows:
+        print("All settings are correct across all files.")
+        return
+    
+    print(f"Total discrepancies found: {len(report_rows)}")
+    print(f"Writing report to {report_filename}...")
+    
+    df = pd.DataFrame(report_rows, columns=['Filename', 'Setting', 'Issue', 'Expected Value', 'Actual Value'])
+    df.to_excel(report_filename, sheet_name="Discrepancy_Report", index=False)
     print(f"Check complete. Please see {report_filename} for any issues.")
 
 if __name__ == "__main__":
