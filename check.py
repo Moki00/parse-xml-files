@@ -1,8 +1,8 @@
 import pandas as pd
 import lxml.etree as ET
 import glob
-import csv
 import os
+from openpyxl.utils import get_column_letter
 
 CHECKS_TO_PERFORM = [
     # -- Phase 2 Voice Capable --
@@ -146,6 +146,73 @@ CHECKS_TO_PERFORM = [
             'Direct DPL Invert':'False',
         }
     },
+
+        # -- GW IO 1 --
+    {
+        'group_name': 'INTEROP - GW IO 1',
+        'base_xpath': ".//Recset[@Name='Zone Channel Assignment']/Node[contains(@ReferenceKey, 'INTEROP')]//EmbeddedNode[@ReferenceKey='1-GW IO 1']",
+        'fields': {
+            'Channel Type': 'Trk',
+            'Personality': '027A - IO',
+            'Channel Name': 'GW IO 1',
+            'Top Display Channel': 'GW IO 1',
+            'Trunking Talkgroup': 'IO 1',
+            'Active Channel': 'True'
+        }
+    },
+        # -- GW IO 2 --
+    {
+        'group_name': 'INTEROP - GW IO 2',
+        'base_xpath': ".//Recset[@Name='Zone Channel Assignment']/Node[contains(@ReferenceKey, 'INTEROP')]//EmbeddedNode[@ReferenceKey='2-GW IO 2']",
+        'fields': {
+            'Channel Type': 'Trk',
+            'Personality': '027A - IO',
+            'Channel Name': 'GW IO 2',
+            'Top Display Channel': 'GW IO 2',
+            'Trunking Talkgroup': 'IO 2',
+            'Active Channel': 'True'
+        }
+    },
+        # -- GW IO 3 --
+    {
+        'group_name': 'INTEROP - GW IO 3',
+        'base_xpath': ".//Recset[@Name='Zone Channel Assignment']/Node[contains(@ReferenceKey, 'INTEROP')]//EmbeddedNode[@ReferenceKey='3-GW IO 3']",
+        'fields': {
+            'Channel Type': 'Trk',
+            'Personality': '027A - IO',
+            'Channel Name': 'GW IO 3',
+            'Top Display Channel': 'GW IO 3',
+            'Trunking Talkgroup': 'IO 3',
+            'Active Channel': 'True'
+        }
+    },
+        # -- GW IO 4 --
+    {
+        'group_name': 'INTEROP - GW IO 4',
+        'base_xpath': ".//Recset[@Name='Zone Channel Assignment']/Node[contains(@ReferenceKey, 'INTEROP')]//EmbeddedNode[@ReferenceKey='4-GW IO 4']",
+        'fields': {
+            'Channel Type': 'Trk',
+            'Personality': '027A - IO',
+            'Channel Name': 'GW IO 4',
+            'Top Display Channel': 'GW IO 4',
+            'Trunking Talkgroup': 'IO 4',
+            'Active Channel': 'True'
+        }
+    },
+
+    # -- GW IO 5 --
+    {
+        'group_name': 'INTEROP - GW IO 5',
+        'base_xpath': ".//Recset[@Name='Zone Channel Assignment']/Node[contains(@ReferenceKey, 'INTEROP')]//EmbeddedNode[@ReferenceKey='5-GW IO 5']",
+        'fields': {
+            'Channel Type': 'Trk',
+            'Personality': '027A - IO',
+            'Channel Name': 'GW IO 5',
+            'Top Display Channel': 'GW IO 5',
+            'Trunking Talkgroup': 'IO 5',
+            'Active Channel': 'True'
+        }
+    },
  
     # -- GW IO 6 --
     {
@@ -173,15 +240,22 @@ CHECKS_TO_PERFORM = [
         }
     },
 
+
 ]
 
-"""CHECKS_TO_PERFORM run against a single XML file and writes any discrepancies to the CSV writer."""
+# Check XML file and log discrepancies
 def check_xml_file(filepath, report_rows):
     try:
         parser = ET.XMLParser(remove_blank_text=True, resolve_entities=False)
         tree = ET.parse(filepath, parser)
         root = tree.getroot()
         filename = os.path.basename(filepath)
+
+        alias = "" # Extract alias
+        alias_xpath = ".//Recset[@Name='Radio Wide']//Field[@Name='User Information\\Radio Alias']"
+        alias_elements = root.xpath(alias_xpath)
+        if alias_elements and alias_elements[0].text:
+            alias = alias_elements[0].text.strip()
         
         for group in CHECKS_TO_PERFORM:
             group_name = group['group_name']
@@ -189,7 +263,7 @@ def check_xml_file(filepath, report_rows):
             parents = root.xpath(group['base_xpath'])
 
             if not parents:
-                report_rows.append([filename, group_name, "Parent Section Not Found", "N/A", "N/A"])
+                report_rows.append([filename, alias, group_name, "Section Missing", "N/A", "N/A"])
                 continue
 
             for parent in parents:
@@ -197,25 +271,24 @@ def check_xml_file(filepath, report_rows):
                     field_elements = parent.xpath(f".//Field[@Name='{field_name}']")
 
                     if not field_elements:
-                        report_rows.append([filename, f"{group_name} - {field_name}", "Setting Not Found", expected_value, "N/A"])
+                        report_rows.append([filename, alias, f"{group_name} - {field_name}", "Setting Missing", expected_value, "N/A"])
                         continue
 
                     actual_value = field_elements[0].text or ""
 
                     if actual_value != expected_value:
-                        report_rows.append([filename, f"{group_name} - {field_name}", "Incorrect Value", expected_value, actual_value])
+                        report_rows.append([filename, alias, f"{group_name} - {field_name}", "Incorrect Value", expected_value, actual_value])
                         
     except ET.XMLSyntaxError:
-        report_rows.append([os.path.basename(filepath), "File Error", "Could not parse XML", "N/A", "N/A"])
+        report_rows.append([os.path.basename(filepath), "File Error", "Alias", "Could not parse XML", "value", "value"])
 
 def main():
     print("Starting check...")
-    """Finds all XML files and generates a CSV report for any discrepancies."""
-    xml_files = glob.glob('*.xml')
+    xml_files = glob.glob('*.xml') # Find all XML files in folder
     total_files = len(xml_files)
 
     if not xml_files:
-        print("No .xml files found in this directory.")
+        print("No .xml files in this folder.")
         return
 
     report_filename = 'report.xlsx'
@@ -223,20 +296,41 @@ def main():
 
     report_rows = []
 
+    # input each error in a new row
     for i, filepath in enumerate(xml_files):
         print(f"Processing file {i+1}/{total_files}: {os.path.basename(filepath)}")
         check_xml_file(filepath, report_rows)
-    
-    if not report_rows:
-        print("All settings are correct across all files.")
-        return
-    
-    print(f"Total discrepancies found: {len(report_rows)}")
-    print(f"Writing report to {report_filename}...")
-    
-    df = pd.DataFrame(report_rows, columns=['Filename', 'Setting', 'Issue', 'Expected Value', 'Actual Value'])
-    df.to_excel(report_filename, sheet_name="Discrepancy_Report", index=False)
-    print(f"Check complete. Please see {report_filename} for any issues.")
+
+    # Generate report
+    with pd.ExcelWriter(report_filename, engine='openpyxl') as writer:
+        if not report_rows: # No errors found
+            sheet_name="No errors"
+            if total_files == 1:
+                message = 'All settings are correct in the XML file in this folder.'
+            else:
+                message = f'All settings are correct across all {total_files} files in this folder.'
+            
+            print(message)
+            df = pd.DataFrame(columns=[message])
+            df.to_excel(writer, sheet_name=sheet_name, index=False)
+            
+            worksheet = writer.sheets[sheet_name]
+            worksheet.column_dimensions['A'].width = len(message) + 5
+
+        else: # Handle errors
+            print(f"Total errors found: {len(report_rows)}")
+            
+            header = ['Filename', 'Alias', 'Setting', 'Issue', 'Expected Value', 'Actual Value']
+            df = pd.DataFrame(report_rows, columns=header)
+            sheet_name = "Error_Report"
+            df.to_excel(writer, sheet_name=sheet_name, index=False)
+
+            worksheet = writer.sheets[sheet_name]
+            for col, column_title in enumerate(df.columns, 1):
+                column_letter = get_column_letter(col)
+                max_length = df[column_title].astype(str).map(len).max() # max length of content
+                max_length = max(max_length, len(column_title)) + 1 # the column header may be longer
+                worksheet.column_dimensions[column_letter].width = max_length # Set the column width
 
 if __name__ == "__main__":
     main()
