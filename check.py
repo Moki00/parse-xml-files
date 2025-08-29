@@ -8,8 +8,8 @@ CHECKS_TO_PERFORM = [
     # -- Phase 2 Voice Capable --
     {
         'group_name': 'Phase 2 Voice Capable',
-        # CHANGED: Using contains() to find the node more flexibly
         'base_xpath': ".//Recset[@Name='Trunking System']/Node[contains(@ReferenceKey, 'GWINNETT')]/Section[@Name='ASTRO 25']",
+        'context_node_name': 'Trunking System',
         'fields': {
             'Phase 2 Voice Capable': 'True'
         }
@@ -19,6 +19,7 @@ CHECKS_TO_PERFORM = [
     {
         'group_name': 'Trunking System - Channel ID 3',
         'base_xpath': ".//Recset[@Name='Trunking System']//EmbeddedNode[@ReferenceKey='Channel ID 3']",
+        'context_node_name': 'Trunking System',
         'fields': {
             'Identifier Enable': 'True',
             'Base Frequency (MHz)': '851.012500',
@@ -33,6 +34,7 @@ CHECKS_TO_PERFORM = [
     {
         'group_name': 'Trunking System - Channel ID 4',
         'base_xpath': ".//Recset[@Name='Trunking System']//EmbeddedNode[@ReferenceKey='Channel ID 4']",
+        'context_node_name': 'Trunking System',
         'fields': {
             'Identifier Enable': 'True',
             'Base Frequency (MHz)': '762.006250',
@@ -47,6 +49,7 @@ CHECKS_TO_PERFORM = [
     {
         'group_name': 'Channel: 8CALL90',
         'base_xpath': ".//Recset[@Name='Conventional Personality']//EmbeddedNode[@ReferenceKey='8CALL90']",
+        'context_node_name': 'Conventional Personality',
         'fields': {
             'Rx / TA Frequency (MHz)': '851.012500',
             'User Selectable PL (MPL)':'False',
@@ -81,6 +84,7 @@ CHECKS_TO_PERFORM = [
     {
         'group_name': 'Channel: 8CALL90Direct',
         'base_xpath': ".//Recset[@Name='Conventional Personality']//EmbeddedNode[@ReferenceKey='8CALL90D']",
+        'context_node_name': 'Conventional Personality',
         'fields': {
             'Rx / TA Frequency (MHz)': '851.012500',
             'User Selectable PL (MPL)':'False',
@@ -116,6 +120,7 @@ CHECKS_TO_PERFORM = [
     {
         'group_name': 'Channel: 8TAC91Direct',
         'base_xpath': ".//Recset[@Name='Conventional Personality']//EmbeddedNode[@ReferenceKey='8TAC91D']",
+        'context_node_name': 'Conventional Personality',
         'fields': {
             'Rx / TA Frequency (MHz)': '851.512500',
             'User Selectable PL (MPL)':'False',
@@ -151,6 +156,7 @@ CHECKS_TO_PERFORM = [
     {
         'group_name': 'INTEROP - GW IO 1',
         'base_xpath': ".//Recset[@Name='Zone Channel Assignment']/Node[contains(@ReferenceKey, 'INTEROP')]//EmbeddedNode[@ReferenceKey='1-GW IO 1']",
+        'context_node_name': 'Zone Channel Assignment',
         'fields': {
             'Channel Type': 'Trk',
             'Personality': '027A - IO',
@@ -164,6 +170,7 @@ CHECKS_TO_PERFORM = [
     {
         'group_name': 'INTEROP - GW IO 2',
         'base_xpath': ".//Recset[@Name='Zone Channel Assignment']/Node[contains(@ReferenceKey, 'INTEROP')]//EmbeddedNode[@ReferenceKey='2-GW IO 2']",
+        'context_node_name': 'Zone Channel Assignment',
         'fields': {
             'Channel Type': 'Trk',
             'Personality': '027A - IO',
@@ -177,6 +184,7 @@ CHECKS_TO_PERFORM = [
     {
         'group_name': 'INTEROP - GW IO 3',
         'base_xpath': ".//Recset[@Name='Zone Channel Assignment']/Node[contains(@ReferenceKey, 'INTEROP')]//EmbeddedNode[@ReferenceKey='3-GW IO 3']",
+        'context_node_name': 'Zone Channel Assignment',
         'fields': {
             'Channel Type': 'Trk',
             'Personality': '027A - IO',
@@ -190,6 +198,7 @@ CHECKS_TO_PERFORM = [
     {
         'group_name': 'INTEROP - GW IO 4',
         'base_xpath': ".//Recset[@Name='Zone Channel Assignment']/Node[contains(@ReferenceKey, 'INTEROP')]//EmbeddedNode[@ReferenceKey='4-GW IO 4']",
+        'context_node_name': 'Zone Channel Assignment',
         'fields': {
             'Channel Type': 'Trk',
             'Personality': '027A - IO',
@@ -204,6 +213,7 @@ CHECKS_TO_PERFORM = [
     {
         'group_name': 'INTEROP - GW IO 5',
         'base_xpath': ".//Recset[@Name='Zone Channel Assignment']/Node[contains(@ReferenceKey, 'INTEROP')]//EmbeddedNode[@ReferenceKey='5-GW IO 5']",
+        'context_node_name': 'Zone Channel Assignment',
         'fields': {
             'Channel Type': 'Trk',
             'Personality': '027A - IO',
@@ -218,6 +228,7 @@ CHECKS_TO_PERFORM = [
     {
         'group_name': 'INTEROP - GW IO 6',
         'base_xpath': ".//Recset[@Name='Zone Channel Assignment']/Node[contains(@ReferenceKey, 'INTEROP')]//EmbeddedNode[@ReferenceKey='6-GW IO 6']",
+        'context_node_name': 'Zone Channel Assignment',
         'fields': {
             'Channel Type': 'Trk',
             'Personality': '027A - IO',
@@ -231,6 +242,7 @@ CHECKS_TO_PERFORM = [
     {
         'group_name': 'INTEROP - 8CALL90',
         'base_xpath': ".//Recset[@Name='Zone Channel Assignment']/Node[contains(@ReferenceKey, 'INTEROP')]//EmbeddedNode[@ReferenceKey='7-8CALL90']",
+        'context_node_name': 'Zone Channel Assignment',
         'fields': {
             'Channel Type': 'Cnv',
             'Personality': '8TAC',
@@ -259,28 +271,37 @@ def check_xml_file(filepath, report_rows):
         
         for group in CHECKS_TO_PERFORM:
             group_name = group['group_name']
-            parent = None
             parents = root.xpath(group['base_xpath'])
 
             if not parents:
-                report_rows.append([filename, alias, group_name, "Section Missing", "N/A", "N/A"])
+                report_rows.append([filename, alias, "N/A", group_name, "N/A", "Section Missing", "N/A", "N/A"])
                 continue
 
             for parent in parents:
+                system_context = "N/A"
+                # This query finds the closest ancestor <Node> with Name="Trunking System"
+                context_name = group.get('context_node_name') # Get the context to search for
+
+                if context_name:
+                    context_xpath = f"ancestor::Node[@Name='{context_name}'][1]/@ReferenceKey"
+                    context_keys = parent.xpath(context_xpath)
+                    if context_keys:
+                        system_context = context_keys[0]
+
                 for field_name, expected_value in group['fields'].items():
                     field_elements = parent.xpath(f".//Field[@Name='{field_name}']")
 
                     if not field_elements:
-                        report_rows.append([filename, alias, f"{group_name} - {field_name}", "Setting Missing", expected_value, "N/A"])
+                        report_rows.append([filename, alias, system_context, group_name, field_name, "Setting Missing", expected_value, "N/A"])
                         continue
 
                     actual_value = field_elements[0].text or ""
 
                     if actual_value != expected_value:
-                        report_rows.append([filename, alias, f"{group_name} - {field_name}", "Incorrect Value", expected_value, actual_value])
+                        report_rows.append([filename, alias, system_context, group_name, field_name, "Incorrect Value", expected_value, actual_value])
                         
     except ET.XMLSyntaxError:
-        report_rows.append([os.path.basename(filepath), "File Error", "Alias", "Could not parse XML", "value", "value"])
+        report_rows.append([os.path.basename(filepath), "File Error", "Alias", "Sys", "Group","Could not parse XML", "value", "value"])
 
 def main():
     print("Starting check...")
@@ -320,7 +341,7 @@ def main():
         else: # Handle errors
             print(f"Total errors found: {len(report_rows)}")
             
-            header = ['Filename', 'Alias', 'Setting', 'Issue', 'Expected Value', 'Actual Value']
+            header = ['Filename', 'Alias', 'Setting','Reference', 'Group','Issue', 'Expected Value', 'Actual Value']
             df = pd.DataFrame(report_rows, columns=header)
             sheet_name = "Error_Report"
             df.to_excel(writer, sheet_name=sheet_name, index=False)

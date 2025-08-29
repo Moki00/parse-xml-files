@@ -210,3 +210,4 @@ report.csv
 *.xml
 *.xlsx
 learn.py
+*.exe
