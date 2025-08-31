@@ -274,12 +274,12 @@ def _extract_metadata(root):
 
     return metadata
 
-def _process_check_group(root, group, metadata, filename):
+def _process_check_group(root, group, metadata, serial):
     error_rows = []
     group_name = group['group_name']
     parents = root.xpath(group['base_xpath'])
     if not parents:
-        error_rows.append([filename, metadata['alias'], metadata['gwinnett_id'], "N/A", group_name, "N/A", "Section Missing", "N/A", "N/A"])
+        error_rows.append([serial, metadata['alias'], metadata['gwinnett_id'], "N/A", group_name, "N/A", "Section Missing", "N/A", "N/A"])
         return error_rows
 
     for parent in parents:
@@ -295,12 +295,12 @@ def _process_check_group(root, group, metadata, filename):
             field_elements = parent.xpath(f".//Field[@Name='{field_name}']")
 
             if not field_elements:
-                error_rows.append([filename, metadata['alias'], metadata['gwinnett_id'], system_context, group_name, field_name, "Setting Missing", expected_value, "N/A"])
+                error_rows.append([serial, metadata['alias'], metadata['gwinnett_id'], system_context, group_name, field_name, "Setting Missing", expected_value, "N/A"])
                 continue
 
             actual_value = field_elements[0].text or ""
             if actual_value != expected_value:
-                error_rows.append([filename, metadata['alias'], metadata['gwinnett_id'], system_context, group_name, field_name, "Incorrect Value", expected_value, actual_value])
+                error_rows.append([serial, metadata['alias'], metadata['gwinnett_id'], system_context, group_name, field_name, "Incorrect Value", expected_value, actual_value])
                 
     return error_rows
 
@@ -311,16 +311,17 @@ def check_xml_file(filepath, report_rows):
         tree = ET.parse(filepath, parser)
         root = tree.getroot()
         filename = os.path.basename(filepath)
+        serial = filename.removesuffix('.xml')
 
         metadata = _extract_metadata(root)
         all_discrepancies_in_file = []
         
         for group in CHECKS_TO_PERFORM:
-            group_errors = _process_check_group(root, group, metadata, filename)
+            group_errors = _process_check_group(root, group, metadata, serial)
             if group_errors:
                 all_discrepancies_in_file.extend(group_errors)
         if not all_discrepancies_in_file:
-            success_row = [filename, metadata['alias'], metadata['gwinnett_id'], "OK", "OK", "OK", "OK", "OK", "OK"]
+            success_row = [serial, metadata['alias'], metadata['gwinnett_id'], "OK", "OK", "OK", "OK", "OK", "OK"]
             report_rows.append(success_row)
         else:
             report_rows.extend(all_discrepancies_in_file)
@@ -364,11 +365,11 @@ def main():
             worksheet.column_dimensions['A'].width = len(message) + 5
 
         else: # Handle errors
-            print(f"Total errors found: {len(report_rows)}")
+            print(f"Total rows recorded: {len(report_rows)}")
             
-            header = ['Filename', 'Alias', 'ID', 'Setting','Reference', 'Group','Problem', 'Expected', 'Actual']
+            header = ['Serial', 'Alias', 'ID', 'Setting','Reference', 'Group','Problem', 'Expected', 'Actual']
             df = pd.DataFrame(report_rows, columns=header)
-            sheet_name = "Error_Report"
+            sheet_name = "Report-On-XML-Files"
             df.to_excel(writer, sheet_name=sheet_name, index=False)
 
             worksheet = writer.sheets[sheet_name]
