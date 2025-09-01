@@ -638,14 +638,12 @@ def _validate_talkgroup_match(root, metadata, filename):
     'Talkgroup Alias Text' and 'ReferenceKey'
     Returns a list of error rows if any mismatches are found.
     """
-    error_rows = []
-    # 1. Build a map of all defined Talkgroup Aliases.
-    #    The key is the ReferenceKey, the value is the Alias Text.
-    talkgroup_definitions = {}
+    error_rows = []    
+    talkgroup_definitions = {} # 1. Build a map of all defined Talkgroup Aliases.
     definition_nodes = root.xpath(".//Recset[@Name='ASTRO Talkgroup List']//EmbeddedNode[@Name='Talkgroup Table']")
 
     for node in definition_nodes:
-        ref_key = node.get('ReferenceKey')
+        ref_key = node.get('ReferenceKey') #  Key = ReferenceKey, Value = Alias Text.
         alias_text_elements = node.xpath(".//Field[@Name='Talkgroup Alias Text']")
         if ref_key and alias_text_elements and alias_text_elements[0].text is not None:
             talkgroup_definitions[ref_key] = alias_text_elements[0].text.strip()
@@ -742,6 +740,7 @@ def adjust_column_width(worksheet):
             pass
 
         worksheet.column_dimensions[col_letter].width = max_length + 1.5 #Return
+    worksheet.column_dimensions["L"].width = 55 #Last column
 
 # Generate Excel report
 def _generate_report(report_filename, report_rows, files_with_errors, total_files):
@@ -754,33 +753,27 @@ def _generate_report(report_filename, report_rows, files_with_errors, total_file
 
         worksheet = writer.sheets[sheet_name]
 
-        COLOR_INDEX = (
-            '00000000', '00FFFFFF', '000000FF', '38761D', '990000', #0-4
-            '00FFFF00', 'c', '0000FFFF', '000000FF', '00FFFFFF', #5-9
-            '00808000', '0000FF00', 'x', #10-12
-        )
-
-        BLACK = COLOR_INDEX[0]
-        WHITE = COLOR_INDEX[1]
-        DARKBLUE = COLOR_INDEX[2]
-        DARKGREEN = COLOR_INDEX[3]
-        DARKRED = COLOR_INDEX[4]
-        YELLOW = COLOR_INDEX[5]
-        BLUE = COLOR_INDEX[8]
-        AQUA = COLOR_INDEX[9]
-        DARKYELLOW = COLOR_INDEX[10]
-        RED = COLOR_INDEX[11]
-        GREEN = COLOR_INDEX[12]
-
+        BLACK = '00000000'
+        WHITE = '00FFFFFF'
+        BLUE = '000000FF'
+        GREEN = '38761D'
+        RED = '990000'
+        GRAY = '00C0C0C0'
     
         black_fill = PatternFill(start_color=BLACK, end_color=BLACK, fill_type="solid") # Black fill
-        green_fill = PatternFill(start_color=DARKGREEN, end_color=DARKGREEN, fill_type="solid") # Green fill
-        red_fill = PatternFill(start_color=DARKRED, end_color=DARKRED, fill_type="solid") # Red fill
+        green_fill = PatternFill(start_color=GREEN, end_color=GREEN, fill_type="solid") # Green fill
+        red_fill = PatternFill(start_color=RED, end_color=RED, fill_type="solid") # Red fill
+
+        for row in worksheet.iter_rows(min_row=1, max_row=worksheet.max_row, min_col=1, max_col=12):
+            for cell in row:
+                cell.fill = black_fill
+                cell.font = Font(bold=False, size=11, color=WHITE) # White font
+                cell.alignment = Alignment(horizontal='left', vertical='center')
 
         # Header
         for cell in worksheet[1]:
-            cell.font = Font(bold=True, size=12, color=WHITE) # White font for header
-            cell.fill = PatternFill(start_color=DARKBLUE, end_color=DARKBLUE, fill_type="solid") # Dark fill
+            cell.font = Font(bold=True, size=12, color=WHITE) # White font
+            cell.fill = PatternFill(start_color=BLUE, end_color=BLUE, fill_type="solid") # Blue fill
             cell.alignment = Alignment(horizontal='center', vertical='center')
 
         # Data rows
@@ -790,10 +783,10 @@ def _generate_report(report_filename, report_rows, files_with_errors, total_file
                 cell.font = Font(bold=False, size=11, color=WHITE) # White font for data
                 cell.alignment = Alignment(horizontal='left', vertical='center')
                 cell.border = Border(
-                    left=Side(border_style="thin", color="00666699"),
-                    right=Side(border_style="thin", color="00666699"),
-                    top=Side(border_style="thin", color="00666699"),
-                    bottom=Side(border_style="thin", color="00666699")
+                    left=Side(border_style="thin", color=GRAY),
+                    right=Side(border_style="thin", color=GRAY),
+                    top=Side(border_style="thin", color=GRAY),
+                    bottom=Side(border_style="thin", color=GRAY)
                 )
 
                 if cell.value == "OK":
@@ -806,7 +799,8 @@ def _generate_report(report_filename, report_rows, files_with_errors, total_file
                     if cell.value != "OK":
                         cell.fill = red_fill
 
-        worksheet.freeze_panes = "A2" # Freeze top row
+        worksheet.freeze_panes = "B2" # Freeze top row & first column
+
         adjust_column_width(worksheet)
 
     print(f"Opening Report: {report_filename}")
