@@ -251,11 +251,60 @@ CHECKS_TO_PERFORM = [
             'Active Channel': 'True'
         }
     },
-
-
 ]
 
-# Check XML file and log discrepancies
+def _extract_metadata(root):
+    metadata={
+        "alias": "",
+        "gwinnett_id": 0
+    }
+
+    alias_xpath = ".//Recset[@Name='Radio Wide']//Field[@Name='User Information\\Radio Alias']"
+    alias_elements = root.xpath(alias_xpath)
+    if alias_elements and alias_elements[0].text:
+        metadata["alias"] = alias_elements[0].text.strip()
+
+    gwinnett_xpath = ".//Recset[@Name='Trunking System']/Node[@Name='Trunking System']/Section[@Name='General']/Field[@Name='Unit ID']"
+    gwinnett_elements = root.xpath(gwinnett_xpath)
+    if gwinnett_elements and gwinnett_elements[0].text:
+        try:
+            metadata["gwinnett_id"] = int(gwinnett_elements[0].text.strip())
+        except (ValueError, TypeError):
+            print(f"Warning: Could not convert Unit ID '{gwinnett_elements[0].text}' to an integer.")
+
+    return metadata
+
+def _process_check_group(root, group, metadata, filename):
+    error_rows = []
+    group_name = group['group_name']
+    parents = root.xpath(group['base_xpath'])
+    if not parents:
+        error_rows.append([filename, metadata['alias'], metadata['gwinnett_id'], "N/A", group_name, "N/A", "Section Missing", "N/A", "N/A"])
+        return error_rows
+
+    for parent in parents:
+        system_context = "N/A"
+        context_name = group.get('context_node_name') # Get the context to search for
+        if context_name:
+            context_xpath = f"ancestor::Node[@Name='{context_name}'][1]/@ReferenceKey"
+            context_keys = parent.xpath(context_xpath)
+            if context_keys:
+                system_context = context_keys[0]
+
+        for field_name, expected_value in group['fields'].items():
+            field_elements = parent.xpath(f".//Field[@Name='{field_name}']")
+
+            if not field_elements:
+                error_rows.append([filename, metadata['alias'], metadata['gwinnett_id'], system_context, group_name, field_name, "Setting Missing", expected_value, "N/A"])
+                continue
+
+            actual_value = field_elements[0].text or ""
+            if actual_value != expected_value:
+                error_rows.append([filename, metadata['alias'], metadata['gwinnett_id'], system_context, group_name, field_name, "Incorrect Value", expected_value, actual_value])
+                
+    return error_rows
+
+# Check XML file
 def check_xml_file(filepath, report_rows):
     try:
         parser = ET.XMLParser(remove_blank_text=True, resolve_entities=False)
@@ -263,45 +312,21 @@ def check_xml_file(filepath, report_rows):
         root = tree.getroot()
         filename = os.path.basename(filepath)
 
-        alias = "" # Extract alias
-        alias_xpath = ".//Recset[@Name='Radio Wide']//Field[@Name='User Information\\Radio Alias']"
-        alias_elements = root.xpath(alias_xpath)
-        if alias_elements and alias_elements[0].text:
-            alias = alias_elements[0].text.strip()
+        metadata = _extract_metadata(root)
+        all_discrepancies_in_file = []
         
         for group in CHECKS_TO_PERFORM:
-            group_name = group['group_name']
-            parents = root.xpath(group['base_xpath'])
+            group_errors = _process_check_group(root, group, metadata, filename)
+            if group_errors:
+                all_discrepancies_in_file.extend(group_errors)
+        if not all_discrepancies_in_file:
+            success_row = [filename, metadata['alias'], metadata['gwinnett_id'], "OK", "OK", "OK", "OK", "OK", "OK"]
+            report_rows.append(success_row)
+        else:
+            report_rows.extend(all_discrepancies_in_file)
 
-            if not parents:
-                report_rows.append([filename, alias, "N/A", group_name, "N/A", "Section Missing", "N/A", "N/A"])
-                continue
-
-            for parent in parents:
-                system_context = "N/A"
-                # This query finds the closest ancestor <Node> with Name="Trunking System"
-                context_name = group.get('context_node_name') # Get the context to search for
-
-                if context_name:
-                    context_xpath = f"ancestor::Node[@Name='{context_name}'][1]/@ReferenceKey"
-                    context_keys = parent.xpath(context_xpath)
-                    if context_keys:
-                        system_context = context_keys[0]
-
-                for field_name, expected_value in group['fields'].items():
-                    field_elements = parent.xpath(f".//Field[@Name='{field_name}']")
-
-                    if not field_elements:
-                        report_rows.append([filename, alias, system_context, group_name, field_name, "Setting Missing", expected_value, "N/A"])
-                        continue
-
-                    actual_value = field_elements[0].text or ""
-
-                    if actual_value != expected_value:
-                        report_rows.append([filename, alias, system_context, group_name, field_name, "Incorrect Value", expected_value, actual_value])
-                        
     except ET.XMLSyntaxError:
-        report_rows.append([os.path.basename(filepath), "File Error", "Alias", "Sys", "Group","Could not parse XML", "value", "value"])
+        report_rows.append([os.path.basename(filepath), "File Error", "Alias", "ID", "Sys", "Group","Could not parse XML", "value", "value"])
 
 def main():
     print("Starting check...")
@@ -341,7 +366,7 @@ def main():
         else: # Handle errors
             print(f"Total errors found: {len(report_rows)}")
             
-            header = ['Filename', 'Alias', 'Setting','Reference', 'Group','Issue', 'Expected Value', 'Actual Value']
+            header = ['Filename', 'Alias', 'ID', 'Setting','Reference', 'Group','Problem', 'Expected', 'Actual']
             df = pd.DataFrame(report_rows, columns=header)
             sheet_name = "Error_Report"
             df.to_excel(writer, sheet_name=sheet_name, index=False)
