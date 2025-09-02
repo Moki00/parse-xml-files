@@ -274,12 +274,12 @@ def _extract_metadata(root):
 
     return metadata
 
-def _process_check_group(root, group, metadata, serial):
+def _process_check_group(root, group, metadata, serial, model, mobile):
     error_rows = []
     group_name = group['group_name']
     parents = root.xpath(group['base_xpath'])
     if not parents:
-        error_rows.append([serial, metadata['alias'], metadata['gwinnett_id'], "N/A", group_name, "N/A", "Section Missing", "N/A", "N/A"])
+        error_rows.append([serial, metadata['alias'], metadata['gwinnett_id'], "N/A", group_name, "N/A", "Section Missing", "N/A", "N/A", model, mobile])
         return error_rows
 
     for parent in parents:
@@ -295,14 +295,36 @@ def _process_check_group(root, group, metadata, serial):
             field_elements = parent.xpath(f".//Field[@Name='{field_name}']")
 
             if not field_elements:
-                error_rows.append([serial, metadata['alias'], metadata['gwinnett_id'], system_context, group_name, field_name, "Setting Missing", expected_value, "N/A"])
+                error_rows.append([serial, metadata['alias'], metadata['gwinnett_id'], system_context, group_name, field_name, "Setting Missing", expected_value, "N/A", model, mobile])
                 continue
 
             actual_value = field_elements[0].text or ""
             if actual_value != expected_value:
-                error_rows.append([serial, metadata['alias'], metadata['gwinnett_id'], system_context, group_name, field_name, "Incorrect Value", expected_value, actual_value])
+                error_rows.append([serial, metadata['alias'], metadata['gwinnett_id'], system_context, group_name, field_name, "Incorrect Value", expected_value, actual_value, model, mobile])
                 
     return error_rows
+
+def _get_model_from_serial(serial):
+    if serial.startswith('426'):
+        return 4000, 'Handheld'
+    elif serial.startswith('481'):
+        return 6000, 'Handheld'
+    elif serial.startswith('527'):
+        return 6500, 'Mobile'
+    elif serial.startswith('579'):
+        return 8000, 'Handheld'
+    elif serial.startswith('652'):
+        return 8000, 'Mobile'
+    elif serial.startswith('681'):
+        return 8500, 'Mobile'
+    elif serial.startswith('755'):
+        return 6500, 'Handheld'
+    elif serial.startswith('756'):
+        return 6000, 'Handheld'
+    elif serial.startswith('761'):
+        return 7500, 'Mobile'
+    else:
+        return 0, 'Is Serial Correct?'
 
 # Check XML file
 def check_xml_file(filepath, report_rows):
@@ -312,22 +334,23 @@ def check_xml_file(filepath, report_rows):
         root = tree.getroot()
         filename = os.path.basename(filepath)
         serial = filename.removesuffix('.xml')
+        model, mobile = _get_model_from_serial(serial)
 
         metadata = _extract_metadata(root)
         all_discrepancies_in_file = []
         
         for group in CHECKS_TO_PERFORM:
-            group_errors = _process_check_group(root, group, metadata, serial)
+            group_errors = _process_check_group(root, group, metadata, serial, model, mobile)
             if group_errors:
                 all_discrepancies_in_file.extend(group_errors)
         if not all_discrepancies_in_file:
-            success_row = [serial, metadata['alias'], metadata['gwinnett_id'], "OK", "OK", "OK", "OK", "OK", "OK"]
+            success_row = [serial, metadata['alias'], metadata['gwinnett_id'], "OK", "OK", "OK", "OK", "OK", "OK", model, mobile]
             report_rows.append(success_row)
         else:
             report_rows.extend(all_discrepancies_in_file)
 
     except ET.XMLSyntaxError:
-        report_rows.append([os.path.basename(filepath), "File Error", "Alias", "ID", "Sys", "Group","Could not parse XML", "value", "value"])
+        report_rows.append([os.path.basename(filepath), "File Error", "Alias", "ID", "Sys", "Group","Could not parse XML", "value", "value", "model", "type"])
 
 def main():
     print("Starting check...")
@@ -367,7 +390,7 @@ def main():
         else: # Handle errors
             print(f"Total rows recorded: {len(report_rows)}")
             
-            header = ['Serial', 'Alias', 'ID', 'Setting','Reference', 'Group','Problem', 'Expected', 'Actual']
+            header = ['Serial', 'Alias', 'ID', 'Setting','Reference', 'Group','Problem', 'Expected', 'Actual', 'Model', 'Type']
             df = pd.DataFrame(report_rows, columns=header)
             sheet_name = "Report-On-XML-Files"
             df.to_excel(writer, sheet_name=sheet_name, index=False)

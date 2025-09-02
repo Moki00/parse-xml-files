@@ -15,3 +15,8 @@ script will:
 5. Output any discrepancies in report.csv log file.
 
 6. Open in Excel.
+
+## Make a new .exe file:
+
+1. delete old build and dist
+2. run "pyinstaller --onefile check.py"
