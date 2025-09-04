@@ -274,12 +274,12 @@ def _extract_metadata(root):
 
     return metadata
 
-def _process_check_group(root, group, metadata, serial, model, mobile):
+def _process_check_group(root, group, metadata, serial, model, mobile_hh):
     error_rows = []
     group_name = group['group_name']
     parents = root.xpath(group['base_xpath'])
     if not parents:
-        error_rows.append([serial, metadata['alias'], metadata['gwinnett_id'], "N/A", group_name, "N/A", "Section Missing", "N/A", "N/A", model, mobile])
+        error_rows.append([serial, metadata['alias'], metadata['gwinnett_id'], "N/A", group_name, "N/A", "Section Missing", "N/A", "N/A", model, mobile_hh])
         return error_rows
 
     for parent in parents:
@@ -292,15 +292,17 @@ def _process_check_group(root, group, metadata, serial, model, mobile):
                 system_context = context_keys[0]
 
         for field_name, expected_value in group['fields'].items():
+            if mobile_hh == 'Mobile' and field_name == 'Top Display Channel':
+                continue # Skip this 'Top Display Channel': field for Mobile devices
             field_elements = parent.xpath(f".//Field[@Name='{field_name}']")
 
             if not field_elements:
-                error_rows.append([serial, metadata['alias'], metadata['gwinnett_id'], system_context, group_name, field_name, "Setting Missing", expected_value, "N/A", model, mobile])
+                error_rows.append([serial, metadata['alias'], metadata['gwinnett_id'], system_context, group_name, field_name, "Setting Missing", expected_value, "N/A", model, mobile_hh])
                 continue
 
             actual_value = field_elements[0].text or ""
             if actual_value != expected_value:
-                error_rows.append([serial, metadata['alias'], metadata['gwinnett_id'], system_context, group_name, field_name, "Incorrect Value", expected_value, actual_value, model, mobile])
+                error_rows.append([serial, metadata['alias'], metadata['gwinnett_id'], system_context, group_name, field_name, "Incorrect Value", expected_value, actual_value, model, mobile_hh])
                 
     return error_rows
 
