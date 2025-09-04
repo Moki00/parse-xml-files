@@ -326,6 +326,23 @@ def _get_model_from_serial(serial):
     else:
         return 0, 'Is Serial Correct?'
 
+def _get_model_from_filename(serial):
+    serial_upper = serial.upper()
+    if '4000' in serial_upper:
+        return 4000, 'Handheld'
+    elif '6000' in serial_upper:
+        return 6000, 'Handheld'
+    elif '6500' in serial_upper:
+        return 6500, 'Mobile'
+    elif '8000' in serial_upper:
+        return 8000, 'Handheld'
+    elif '8500' in serial_upper:
+        return 8500, 'Mobile'
+    elif '7500' in serial_upper:
+        return 7500, 'Mobile'
+    else:
+        return 0, 'Is Model in Filename?'
+
 # Check XML file
 def check_xml_file(filepath, report_rows):
     try:
@@ -334,7 +351,11 @@ def check_xml_file(filepath, report_rows):
         root = tree.getroot()
         filename = os.path.basename(filepath)
         serial = filename.removesuffix('.xml')
-        model, mobile = _get_model_from_serial(serial)
+
+        if len(serial)==10:
+            model, mobile = _get_model_from_serial(serial)
+        else:
+            model, mobile = _get_model_from_filename(serial)
 
         metadata = _extract_metadata(root)
         all_discrepancies_in_file = []
