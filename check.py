@@ -390,11 +390,14 @@ def check_xml_file(filepath, report_rows):
         if not discrepancies_in_file:
             success_row = [serial, metadata['alias'], metadata['gwinnett_id'], "OK", "OK", "OK", "OK", "OK", "OK", model, mobile]
             report_rows.append(success_row)
+            return False
         else:
             report_rows.extend(discrepancies_in_file)
+            return True
 
     except ET.XMLSyntaxError:
         report_rows.append([os.path.basename(filepath), "File Error", "Alias", "ID", "Sys", "Group","Could not parse XML", "value", "value", "model", "type"])
+        return True
 
 def main():
     print("Starting check...")
@@ -409,42 +412,31 @@ def main():
     print(f"Found {total_files} XML files. Checking settings...")
 
     report_rows = []
+    files_with_errors = 0
 
     # input each error in a new row
     for i, filepath in enumerate(xml_files):
         print(f"Processing file {i+1}/{total_files}: {os.path.basename(filepath)}")
-        check_xml_file(filepath, report_rows)
+        if check_xml_file(filepath, report_rows):
+            files_with_errors += 1
 
     # Generate report
     with pd.ExcelWriter(report_filename, engine='openpyxl') as writer:
-        if not report_rows: # No errors found
-            sheet_name="No errors"
-            if total_files == 1:
-                message = 'All settings are correct in the XML file in this folder.'
-            else:
-                message = f'All settings are correct across all {total_files} files in this folder.'
-            
-            print(message)
-            df = pd.DataFrame(columns=[message])
-            df.to_excel(writer, sheet_name=sheet_name, index=False)
-            
-            worksheet = writer.sheets[sheet_name]
-            worksheet.column_dimensions['A'].width = len(message) + 5
 
-        else: # Handle errors
-            print(f"Total rows recorded: {len(report_rows)}")
-            
-            header = ['Serial', 'Alias', 'ID', 'Setting','Reference', 'Group','Problem', 'Expected', 'Actual', 'Model', 'Type']
-            df = pd.DataFrame(report_rows, columns=header)
-            sheet_name = "Report-On-XML-Files"
-            df.to_excel(writer, sheet_name=sheet_name, index=False)
+        print(f"Total rows recorded: {len(report_rows)}")
+        print(f"Files with errors: {files_with_errors} out of {total_files} files.")
+        
+        header = ['Serial', 'Alias', 'ID', 'Setting','Reference', 'Group','Problem', 'Expected', 'Actual', 'Model', 'Type']
+        df = pd.DataFrame(report_rows, columns=header)
+        sheet_name = "Report-On-XML-Files"
+        df.to_excel(writer, sheet_name=sheet_name, index=False)
 
-            worksheet = writer.sheets[sheet_name]
-            for col, column_title in enumerate(df.columns, 1):
-                column_letter = get_column_letter(col)
-                max_length = df[column_title].astype(str).map(len).max() # max length of content
-                max_length = max(max_length, len(column_title)) + 1 # the column header may be longer
-                worksheet.column_dimensions[column_letter].width = max_length # Set the column width
+        worksheet = writer.sheets[sheet_name]
+        for col, column_title in enumerate(df.columns, 1):
+            column_letter = get_column_letter(col)
+            max_length = df[column_title].astype(str).map(len).max() # max length of content
+            max_length = max(max_length, len(column_title)) + 1 # the column header may be longer
+            worksheet.column_dimensions[column_letter].width = max_length # Set the column width
 
 if __name__ == "__main__":
     main()
