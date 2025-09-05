@@ -306,23 +306,23 @@ def _process_check_group(root, group, metadata, serial, model, mobile_hh):
                 
     return error_rows
 
-def _get_model_from_serial(serial):
+def _get_model_and_mobile_from_serial(serial):
     if serial.startswith('426'):
-        return 4000, 'Handheld'
+        return 4000, 'Portable'
     elif serial.startswith('481'):
-        return 6000, 'Handheld'
+        return 6000, 'Portable'
     elif serial.startswith('527'):
         return 6500, 'Mobile'
     elif serial.startswith('579'):
-        return 8000, 'Handheld'
+        return 8000, 'Portable'
     elif serial.startswith('652'):
         return 8000, 'Mobile'
     elif serial.startswith('681'):
         return 8500, 'Mobile'
     elif serial.startswith('755'):
-        return 6500, 'Handheld'
+        return 6500, 'Portable'
     elif serial.startswith('756'):
-        return 6000, 'Handheld'
+        return 6000, 'Portable'
     elif serial.startswith('761'):
         return 7500, 'Mobile'
     else:
@@ -331,19 +331,39 @@ def _get_model_from_serial(serial):
 def _get_model_from_filename(serial):
     serial_upper = serial.upper()
     if '4000' in serial_upper:
-        return 4000, 'Handheld'
+        return 4000
     elif '6000' in serial_upper:
-        return 6000, 'Handheld'
+        return 6000
     elif '6500' in serial_upper:
-        return 6500, 'Mobile'
+        return 6500
     elif '8000' in serial_upper:
-        return 8000, 'Handheld'
+        return 8000
     elif '8500' in serial_upper:
-        return 8500, 'Mobile'
+        return 8500
     elif '7500' in serial_upper:
-        return 7500, 'Mobile'
+        return 7500
     else:
         return 0, 'Is Model in Filename?'
+    
+def _get_mobile_from_filename(serial):
+    serial_upper = serial.upper()
+    if 'MOBILE' in serial_upper or 'MOB' in serial_upper:
+        return 'Mobile'
+    elif 'HANDHELD' in serial_upper or 'HH' in serial_upper or 'PORTABLE' in serial_upper:
+        return 'Portable'
+    else:
+        _get_mobile_from_model(serial)
+
+def _get_mobile_from_model(serial):
+    model = _get_model_from_filename(serial)
+    if model in [6500, 7500, 8500]:
+        return 'Mobile'
+    elif model in [4000, 6000]:
+        return 'Portable'
+    elif model == 8000:
+        return 'Need description'
+    else:
+        return 'Is Type in Filename?'
 
 # Check XML file
 def check_xml_file(filepath, report_rows):
@@ -355,22 +375,23 @@ def check_xml_file(filepath, report_rows):
         serial = filename.removesuffix('.xml')
 
         if len(serial)==10:
-            model, mobile = _get_model_from_serial(serial)
+            model, mobile = _get_model_and_mobile_from_serial(serial)
         else:
-            model, mobile = _get_model_from_filename(serial)
+            model = _get_model_from_filename(serial)
+            mobile = _get_mobile_from_filename(serial)
 
         metadata = _extract_metadata(root)
-        all_discrepancies_in_file = []
+        discrepancies_in_file = []
         
         for group in CHECKS_TO_PERFORM:
             group_errors = _process_check_group(root, group, metadata, serial, model, mobile)
             if group_errors:
-                all_discrepancies_in_file.extend(group_errors)
-        if not all_discrepancies_in_file:
+                discrepancies_in_file.extend(group_errors)
+        if not discrepancies_in_file:
             success_row = [serial, metadata['alias'], metadata['gwinnett_id'], "OK", "OK", "OK", "OK", "OK", "OK", model, mobile]
             report_rows.append(success_row)
         else:
-            report_rows.extend(all_discrepancies_in_file)
+            report_rows.extend(discrepancies_in_file)
 
     except ET.XMLSyntaxError:
         report_rows.append([os.path.basename(filepath), "File Error", "Alias", "ID", "Sys", "Group","Could not parse XML", "value", "value", "model", "type"])
