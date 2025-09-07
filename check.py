@@ -3,6 +3,7 @@ import lxml.etree as ET
 import glob
 import os
 from openpyxl.utils import get_column_letter
+from datetime import datetime
 
 CHECKS_TO_PERFORM = [
 
@@ -560,13 +561,13 @@ def _process_check_group(root, group, metadata, serial, model, mobile_hh):
             field_elements = parent.xpath(f".//Field[@Name='{field_name}']")
 
             if not field_elements:
-                print(f"Bad File = {serial}.xml") # See Bad File in terminal
+                # print(f"Bad File = {serial}.xml") # See Bad File in terminal
                 error_rows.append([serial, metadata['alias'], metadata['gwinnett_id'], system_context, group_name, field_name, "Setting Missing", expected_value, "N/A", model, mobile_hh])
                 continue
 
             actual_value = field_elements[0].text or ""
             if actual_value != expected_value:
-                print(f"Bad File = {serial}.xml") # See Bad File in terminal
+                # print(f"Bad File = {serial}.xml") # See Bad File in terminal
                 error_rows.append([serial, metadata['alias'], metadata['gwinnett_id'], system_context, group_name, field_name, "Incorrect Value", expected_value, actual_value, model, mobile_hh])
                 
     return error_rows
@@ -710,7 +711,7 @@ def check_xml_file(filepath, report_rows):
             discrepancies_in_file.extend(talkgroup_errors)
 
         if not discrepancies_in_file:
-            print(f"OK File = {filename}") # See Good File in terminal
+            # print(f"OK File = {filename}") # See Good File in terminal
             success_row = [serial, metadata['alias'], metadata['gwinnett_id'], "OK", "OK", "OK", "OK", "OK", "OK", model, mobile]
             report_rows.append(success_row)
             return False
@@ -728,29 +729,32 @@ def main():
 
     if not xml_files:
         print("No .xml files in this folder.")
+        print("Run this program in a folder with XML files to check.")
+        input("Press Enter to exit...") # hold the terminal open for .exe users 
         return
 
-    report_filename = 'report.xlsx'
-    print(f"Found {total_files} XML files. Checking settings...")
+    timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M")
+    report_filename = f'Codeplug-Report_{timestamp}.xlsx'
+    # print(f"Found {total_files} XML files. Checking settings...")
 
     report_rows = []
     files_with_errors = 0
 
     # input each error in a new row
     for i, filepath in enumerate(xml_files):
-        print(f"Processing file {i+1}/{total_files}: {os.path.basename(filepath)}")
+        # print(f"Processing file {i+1}/{total_files}: {os.path.basename(filepath)}")
         if check_xml_file(filepath, report_rows):
             files_with_errors += 1
 
     # Generate report
     with pd.ExcelWriter(report_filename, engine='openpyxl') as writer:
 
-        print(f"Total rows recorded: {len(report_rows)}")
-        print(f"Files with errors: {files_with_errors} out of {total_files} files.")
+        # print(f"Total rows recorded: {len(report_rows)}")
+        # print(f"Files with errors: {files_with_errors} out of {total_files} files.")
         
         header = ['Serial', 'Alias', 'ID', 'Setting','Reference', 'Group','Problem', 'Expected', 'Actual', 'Model', 'Type']
         df = pd.DataFrame(report_rows, columns=header)
-        sheet_name = "Report-On-XML-Files"
+        sheet_name = f'{files_with_errors} of {total_files} files have errors'
         df.to_excel(writer, sheet_name=sheet_name, index=False)
 
         worksheet = writer.sheets[sheet_name]
@@ -760,7 +764,11 @@ def main():
             max_length = max(max_length, len(column_title)) + 1 # the column header may be longer
             worksheet.column_dimensions[column_letter].width = max_length # Set the column width
 
-    input("Press Enter to exit...") # hold the terminal open for .exe users 
+    print(f"Opening Report: {report_filename}")
+    try:
+        os.startfile(report_filename) # open the report
+    except AttributeError:
+        print("Open report manually.")
 
 if __name__ == "__main__":
     main()
