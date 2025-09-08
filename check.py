@@ -754,31 +754,59 @@ def _generate_report(report_filename, report_rows, files_with_errors, total_file
 
         worksheet = writer.sheets[sheet_name]
 
-        # Header
-        header_font = Font(bold=True, size=12, color="00FFFFFF") # White font for header
-        header_fill = PatternFill(start_color="0000000D", end_color="0000000D", fill_type="solid") # Dark Blue fill
-        header_align = Alignment(horizontal='center', vertical='center')
-    
-        green_fill = PatternFill(start_color="0000AA00", end_color="0000AA00", fill_type="solid") # Green fill
-        red_fill = PatternFill(start_color="00FF0000", end_color="00FF0000", fill_type="solid") # Red fill
-        left_align = Alignment(horizontal='left', vertical='center')
+        COLOR_INDEX = (
+            '00000000', '00FFFFFF', '000000FF', '38761D', '990000', #0-4
+            '00FFFF00', 'c', '0000FFFF', '000000FF', '00FFFFFF', #5-9
+            '00808000', '0000FF00', 'x', #10-12
+        )
 
-        for cell in worksheet[1]: # Header row
-            cell.font = header_font
-            cell.fill = header_fill
-            cell.alignment = header_align
+        BLACK = COLOR_INDEX[0]
+        WHITE = COLOR_INDEX[1]
+        DARKBLUE = COLOR_INDEX[2]
+        DARKGREEN = COLOR_INDEX[3]
+        DARKRED = COLOR_INDEX[4]
+        YELLOW = COLOR_INDEX[5]
+        BLUE = COLOR_INDEX[8]
+        AQUA = COLOR_INDEX[9]
+        DARKYELLOW = COLOR_INDEX[10]
+        RED = COLOR_INDEX[11]
+        GREEN = COLOR_INDEX[12]
+
+    
+        black_fill = PatternFill(start_color=BLACK, end_color=BLACK, fill_type="solid") # Black fill
+        green_fill = PatternFill(start_color=DARKGREEN, end_color=DARKGREEN, fill_type="solid") # Green fill
+        red_fill = PatternFill(start_color=DARKRED, end_color=DARKRED, fill_type="solid") # Red fill
+
+        # Header
+        for cell in worksheet[1]:
+            cell.font = Font(bold=True, size=12, color=WHITE) # White font for header
+            cell.fill = PatternFill(start_color=DARKBLUE, end_color=DARKBLUE, fill_type="solid") # Dark fill
+            cell.alignment = Alignment(horizontal='center', vertical='center')
 
         # Data rows
         for row in worksheet.iter_rows(min_row=2, max_row=worksheet.max_row, min_col=1, max_col=11):
             for cell in row:
-                cell.alignment = left_align
-                cell.b
-                if cell.column == 9: # Actual Problem
-                    if cell.value == "OK":
-                        cell.fill = green_fill
-                    else:
+                cell.fill = black_fill
+                cell.font = Font(bold=False, size=11, color=WHITE) # White font for data
+                cell.alignment = Alignment(horizontal='left', vertical='center')
+                cell.border = Border(
+                    left=Side(border_style="thin", color="00666699"),
+                    right=Side(border_style="thin", color="00666699"),
+                    top=Side(border_style="thin", color="00666699"),
+                    bottom=Side(border_style="thin", color="00666699")
+                )
+
+                if cell.value == "OK":
+                    cell.fill = green_fill
+
+                if cell.column == 7: # Problem = G (7th column)
+                    if cell.value == "Section Missing":
+                        cell.fill = red_fill
+                if cell.column == 9: # Actual Problem = I (9th column)
+                    if cell.value != "OK":
                         cell.fill = red_fill
 
+        worksheet.freeze_panes = "A2" # Freeze top row
         adjust_column_width(worksheet)
 
     print(f"Opening Report: {report_filename}")
