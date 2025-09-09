@@ -353,7 +353,7 @@ def _get_mobile_from_filename(serial):
     elif 'HANDHELD' in serial_upper or 'HH' in serial_upper or 'PORTABLE' in serial_upper:
         return 'Portable'
     else:
-        _get_mobile_from_model(serial)
+        return _get_mobile_from_model(serial)
 
 def _get_mobile_from_model(serial):
     model = _get_model_from_filename(serial)
@@ -434,8 +434,6 @@ def check_xml_file(filepath, report_rows):
             mobile = _get_mobile_from_filename(serial)
 
         metadata = _extract_metadata(root)
-        metadata['model'] = model  # Add model to metadata
-        metadata['mobile_hh'] = mobile  # Add mobile/handheld to metadata
         discrepancies_in_file = []
         
         for group in CHECKS_TO_PERFORM:
