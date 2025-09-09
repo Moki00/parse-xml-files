@@ -70,7 +70,7 @@ CHECKS_TO_PERFORM = [
             'Direct Squelch Type':'PL',
             'Direct PL Freq':'67.0',
             'Direct PL Code':'XZ',
-            'ASTRO Talkgroup ID':'TG 1',
+            # 'ASTRO Talkgroup ID':'TG 1',
             'Tx Deviation / Channel Spacing': '4 kHz / 20 kHz',
             'Name':'8CALL90',
             'Direct Network ID':'659',
@@ -105,7 +105,7 @@ CHECKS_TO_PERFORM = [
             'Direct Squelch Type':'PL',
             'Direct PL Freq':'67.0',
             'Direct PL Code':'XZ',
-            'ASTRO Talkgroup ID':'TG 1',
+            # 'ASTRO Talkgroup ID':'TG 1',
             'Tx Deviation / Channel Spacing': '4 kHz / 20 kHz',
             'Name':'8CALL90D',
             'Direct Network ID':'659',
@@ -141,7 +141,7 @@ CHECKS_TO_PERFORM = [
             'Direct Squelch Type':'PL',
             'Direct PL Freq':'67.0',
             'Direct PL Code':'XZ',
-            'ASTRO Talkgroup ID':'TG 1',
+            # 'ASTRO Talkgroup ID':'TG 1',
             'Tx Deviation / Channel Spacing': '4 kHz / 20 kHz',
             'Name':'8TAC91D',
             'Direct Network ID':'659',
@@ -278,6 +278,7 @@ def _process_check_group(root, group, metadata, serial, model, mobile_hh):
     error_rows = []
     group_name = group['group_name']
     parents = root.xpath(group['base_xpath'])
+
     if not parents:
         error_rows.append([serial, metadata['alias'], metadata['gwinnett_id'], "N/A", group_name, "N/A", "Section Missing", "N/A", "N/A", model, mobile_hh])
         return error_rows
@@ -343,7 +344,7 @@ def _get_model_from_filename(serial):
     elif '7500' in serial_upper:
         return 7500
     else:
-        return 0, 'Is Model in Filename?'
+        return 'Is Model in Filename?'
     
 def _get_mobile_from_filename(serial):
     serial_upper = serial.upper()
@@ -365,6 +366,58 @@ def _get_mobile_from_model(serial):
     else:
         return 'Is Type in Filename?'
 
+def _validate_talkgroup_match(root, metadata, filename):
+    """
+    Any 'ASTRO Talkgroup ID' matches its corresponding 
+    'Talkgroup Alias Text' and 'ReferenceKey'
+    Returns a list of error rows if any mismatches are found.
+    """
+    error_rows = []
+    # 1. Build a map of all defined Talkgroup Aliases.
+    #    The key is the ReferenceKey, the value is the Alias Text.
+    talkgroup_definitions = {}
+    definition_nodes = root.xpath(".//Recset[@Name='ASTRO Talkgroup List']//EmbeddedNode[@Name='Talkgroup Table']")
+
+    for node in definition_nodes:
+        ref_key = node.get('ReferenceKey')
+        alias_text_elements = node.xpath(".//Field[@Name='Talkgroup Alias Text']")
+        if ref_key and alias_text_elements and alias_text_elements[0].text is not None:
+            talkgroup_definitions[ref_key] = alias_text_elements[0].text.strip()
+    
+    # 2. Check every 'ASTRO Talkgroup ID' field in the file.
+    id_usage_fields = root.xpath(".//Field[@Name='ASTRO Talkgroup ID']")
+    for field in id_usage_fields:
+        used_id = field.text.strip() if field.text else ""
+        # Ignore the default "TG 1" case
+        if used_id in ["TG 1", ""]:
+            continue
+
+        # CHECK: Does the used ID exist as a key, and does its value also match?
+        if talkgroup_definitions.get(used_id) == used_id:
+            continue  # This is the success case: all three strings match.
+
+        # If we reach here, something is wrong.
+        context_node = field.xpath("ancestor::*[@ReferenceKey][1]")
+        context_key = context_node[0].get('ReferenceKey') if context_node else "Unknown Context"
+
+        if used_id not in talkgroup_definitions:
+            issue = "Undeclared Talkgroup ID"
+            expected = "A declared Talkgroup Alias"
+            actual = used_id
+        else:
+            issue = "Inconsistent Definition"
+            expected = f"Alias Text to match ReferenceKey ('{used_id}')"
+            actual = talkgroup_definitions.get(used_id, "Not Found")
+        
+        error_rows.append([
+            filename, metadata['alias'], metadata['gwinnett_id'], context_key, 
+            "Talkgroup Consistency", f"ASTRO Talkgroup ID: {used_id}", 
+            issue, expected, actual
+        ])
+    
+    return error_rows
+
+
 # Check XML file
 def check_xml_file(filepath, report_rows):
     try:
@@ -381,12 +434,20 @@ def check_xml_file(filepath, report_rows):
             mobile = _get_mobile_from_filename(serial)
 
         metadata = _extract_metadata(root)
+        metadata['model'] = model  # Add model to metadata
+        metadata['mobile_hh'] = mobile  # Add mobile/handheld to metadata
         discrepancies_in_file = []
         
         for group in CHECKS_TO_PERFORM:
-            group_errors = _process_check_group(root, group, metadata, serial, model, mobile)
-            if group_errors:
-                discrepancies_in_file.extend(group_errors)
+            errors = _process_check_group(root, group, metadata, serial, model, mobile)
+            if errors:
+                discrepancies_in_file.extend(errors)
+        
+        # Call the new, simpler validation function
+        talkgroup_errors = _validate_talkgroup_match(root, metadata, serial)
+        if talkgroup_errors:
+            discrepancies_in_file.extend(talkgroup_errors)
+
         if not discrepancies_in_file:
             success_row = [serial, metadata['alias'], metadata['gwinnett_id'], "OK", "OK", "OK", "OK", "OK", "OK", model, mobile]
             report_rows.append(success_row)
