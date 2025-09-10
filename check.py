@@ -2,8 +2,9 @@ import pandas as pd
 import lxml.etree as ET
 import glob
 import os
-from openpyxl.utils import get_column_letter
 from datetime import datetime
+from openpyxl.utils import column_index_from_string
+from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 
 CHECKS_TO_PERFORM = [
 
@@ -653,15 +654,15 @@ def _validate_talkgroup_match(root, metadata, filename):
     id_usage_fields = root.xpath(".//Field[@Name='ASTRO Talkgroup ID']")
     for field in id_usage_fields:
         used_id = field.text.strip() if field.text else ""
-        # Ignore the default "TG 1" case
-        if used_id in ["TG 1", ""]:
+        
+        if used_id in ["TG 1", ""]: # Ignore the default "TG 1" case
             continue
 
-        # CHECK: Does the used ID exist as a key, and does its value also match?
+        # Does the used ID exist as a key, and does its value also match?
         if talkgroup_definitions.get(used_id) == used_id:
             continue  # This is the success case: all three strings match.
 
-        # If we reach here, something is wrong.
+        # Something is wrong if we reach here
         context_node = field.xpath("ancestor::*[@ReferenceKey][1]")
         context_key = context_node[0].get('ReferenceKey') if context_node else "Unknown Context"
 
@@ -705,13 +706,11 @@ def check_xml_file(filepath, report_rows):
             if errors:
                 discrepancies_in_file.extend(errors)
         
-        # Call the new, simpler validation function
         talkgroup_errors = _validate_talkgroup_match(root, metadata, serial)
         if talkgroup_errors:
             discrepancies_in_file.extend(talkgroup_errors)
 
         if not discrepancies_in_file:
-            # print(f"OK File = {filename}") # See Good File in terminal
             success_row = [serial, metadata['alias'], metadata['gwinnett_id'], "OK", "OK", "OK", "OK", "OK", "OK", model, mobile]
             report_rows.append(success_row)
             return False
@@ -723,52 +722,93 @@ def check_xml_file(filepath, report_rows):
         report_rows.append([os.path.basename(filepath), "File Error", "Alias", "ID", "Sys", "Group","Could not parse XML", "value", "value", "model", "type"])
         return True
 
-def main():
-    xml_files = glob.glob('*.xml') # Find all XML files in folder
-    total_files = len(xml_files)
-
-    if not xml_files:
-        print("No .xml files in this folder.")
-        print("Run this program in a folder with XML files to check.")
-        input("Press Enter to exit...") # hold the terminal open for .exe users 
-        return
-
-    timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M")
-    report_filename = f'Codeplug-Report_{timestamp}.xlsx'
-    # print(f"Found {total_files} XML files. Checking settings...")
-
-    report_rows = []
-    files_with_errors = 0
-
-    # input each error in a new row
-    for i, filepath in enumerate(xml_files):
-        # print(f"Processing file {i+1}/{total_files}: {os.path.basename(filepath)}")
-        if check_xml_file(filepath, report_rows):
-            files_with_errors += 1
-
-    # Generate report
-    with pd.ExcelWriter(report_filename, engine='openpyxl') as writer:
-
-        # print(f"Total rows recorded: {len(report_rows)}")
-        # print(f"Files with errors: {files_with_errors} out of {total_files} files.")
+# Adjust Excel column widths
+def adjust_column_width(worksheet):
+    for col_cells in worksheet.columns:
+        max_length = 0
+        col_letter = col_cells[0].column_letter
+        for cell in col_cells:
+            if cell.value:
+                cell_len = len(str(cell.value))
+                max_length = max(max_length, cell_len)
         
+        try:
+            header_row = worksheet[1]
+            col_idx = column_index_from_string(col_letter) - 1
+            header_cell = header_row[col_idx]
+            header_len = len(str(header_cell.value)) # header length if longer
+            max_length = max(max_length, header_len)
+        except(IndexError, TypeError):
+            pass
+
+        worksheet.column_dimensions[col_letter].width = max_length + 1.5 #Return
+
+# Generate Excel report
+def _generate_report(report_filename, report_rows, files_with_errors, total_files):
+    with pd.ExcelWriter(report_filename, engine='openpyxl') as writer:
+    
         header = ['Serial', 'Alias', 'ID', 'Setting','Reference', 'Group','Problem', 'Expected', 'Actual', 'Model', 'Type']
         df = pd.DataFrame(report_rows, columns=header)
         sheet_name = f'{files_with_errors} of {total_files} files have errors'
         df.to_excel(writer, sheet_name=sheet_name, index=False)
 
         worksheet = writer.sheets[sheet_name]
-        for col, column_title in enumerate(df.columns, 1):
-            column_letter = get_column_letter(col)
-            max_length = df[column_title].astype(str).map(len).max() # max length of content
-            max_length = max(max_length, len(column_title)) + 1 # the column header may be longer
-            worksheet.column_dimensions[column_letter].width = max_length # Set the column width
+
+        # Header
+        header_font = Font(bold=True, size=12, color="00FFFFFF") # White font for header
+        header_fill = PatternFill(start_color="0000000D", end_color="0000000D", fill_type="solid") # Dark Blue fill
+        header_align = Alignment(horizontal='center', vertical='center')
+    
+        green_fill = PatternFill(start_color="0000AA00", end_color="0000AA00", fill_type="solid") # Green fill
+        red_fill = PatternFill(start_color="00FF0000", end_color="00FF0000", fill_type="solid") # Red fill
+        left_align = Alignment(horizontal='left', vertical='center')
+
+        for cell in worksheet[1]: # Header row
+            cell.font = header_font
+            cell.fill = header_fill
+            cell.alignment = header_align
+
+        # Data rows
+        for row in worksheet.iter_rows(min_row=2, max_row=worksheet.max_row, min_col=1, max_col=11):
+            for cell in row:
+                cell.alignment = left_align
+                cell.b
+                if cell.column == 9: # Actual Problem
+                    if cell.value == "OK":
+                        cell.fill = green_fill
+                    else:
+                        cell.fill = red_fill
+
+        adjust_column_width(worksheet)
 
     print(f"Opening Report: {report_filename}")
     try:
         os.startfile(report_filename) # open the report
     except AttributeError:
         print("Open report manually.")
+
+# Main function
+def main():
+    xml_files = glob.glob('*.xml') # Find all XML files in folder
+    if not xml_files:
+        print("No XML Codeplugs in this folder.")
+        print("Run this program in a folder with XML Codeplugs.")
+        input("Press Enter to exit...") # hold terminal open
+        return
+
+    total_files = len(xml_files)
+    timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M")
+    report_filename = f'Codeplug-Report_{timestamp}.xlsx'
+    report_rows = []
+    files_with_errors = 0
+
+    # input each row
+    for i, filepath in enumerate(xml_files):
+        if check_xml_file(filepath, report_rows):
+            files_with_errors += 1
+
+    # Generate report
+    _generate_report(report_filename, report_rows, files_with_errors, total_files)
 
 if __name__ == "__main__":
     main()
