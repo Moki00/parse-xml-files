@@ -5,6 +5,11 @@ import os
 from openpyxl.utils import get_column_letter
 
 CHECKS_TO_PERFORM = [
+
+    # ----------------------------------------------------------
+    # ------ TDMA = Phase 2 ------
+    # ----------------------------------------------------------
+
     # -- Phase 2 Voice Capable --
     {
         'group_name': 'Phase 2 Voice Capable',
@@ -14,7 +19,7 @@ CHECKS_TO_PERFORM = [
             'Phase 2 Voice Capable': 'True'
         }
     },
-       
+
     # -- TDMA Channel ID 3 --
     {
         'group_name': 'Trunking System - Channel ID 3',
@@ -45,7 +50,11 @@ CHECKS_TO_PERFORM = [
         }
     },
 
-    # -- Channel: 8CALL90 --
+    # ----------------------------------------------------------
+    # ------ Personalities ------
+    # ----------------------------------------------------------
+
+    # -- 8CALL90 Personality
     {
         'group_name': 'Channel: 8CALL90',
         'base_xpath': ".//Recset[@Name='Conventional Personality']//EmbeddedNode[@ReferenceKey='8CALL90']",
@@ -70,7 +79,6 @@ CHECKS_TO_PERFORM = [
             'Direct Squelch Type':'PL',
             'Direct PL Freq':'67.0',
             'Direct PL Code':'XZ',
-            # 'ASTRO Talkgroup ID':'TG 1',
             'Tx Deviation / Channel Spacing': '4 kHz / 20 kHz',
             'Name':'8CALL90',
             'Direct Network ID':'659',
@@ -80,9 +88,10 @@ CHECKS_TO_PERFORM = [
             'Direct DPL Invert':'False',
         }
     },
-        # -- Channel: 8CALL90Direct --
+
+    # -- 8CALL90D Personality
     {
-        'group_name': 'Channel: 8CALL90Direct',
+        'group_name': '8CALL90D Personality',
         'base_xpath': ".//Recset[@Name='Conventional Personality']//EmbeddedNode[@ReferenceKey='8CALL90D']",
         'context_node_name': 'Conventional Personality',
         'fields': {
@@ -101,11 +110,10 @@ CHECKS_TO_PERFORM = [
             'Rx / TA DPL Code':'023',
             'Rx / TA DPL Invert':'False',
             'Rx / TA  Network ID':'659',
-            'Direct / Talkaround':'True',
+            # 'Direct / Talkaround':'True',
             'Direct Squelch Type':'PL',
             'Direct PL Freq':'67.0',
             'Direct PL Code':'XZ',
-            # 'ASTRO Talkgroup ID':'TG 1',
             'Tx Deviation / Channel Spacing': '4 kHz / 20 kHz',
             'Name':'8CALL90D',
             'Direct Network ID':'659',
@@ -116,9 +124,44 @@ CHECKS_TO_PERFORM = [
         }
     },
 
-            # -- Channel: 8TAC91Direct --
+    # -- 8TAC91 Personality
     {
-        'group_name': 'Channel: 8TAC91Direct',
+        'group_name': '8TAC91 Personality',
+        'base_xpath': ".//Recset[@Name='Conventional Personality']//EmbeddedNode[@ReferenceKey='8TAC91']",
+        'context_node_name': 'Conventional Personality',
+        'fields': {
+            'Rx / TA Frequency (MHz)': '851.512500',
+            'User Selectable PL (MPL)':'False',
+            'Tx Squelch Type':'PL',
+            'Tx DPL Code':'023',
+            'Tx DPL Invert':'False',
+            'Rx / TA Squelch Type':'PL',
+            'Tx Frequency (MHz)':'806.512500',
+            'Tx Network ID':'659',
+            'Tx PL Code':'5A',
+            'Tx PL Freq':'156.7',
+            'Rx / TA  PL Code':'5A',
+            'Rx / TA PL Freq':'156.7',
+            'Rx / TA DPL Code':'023',
+            'Rx / TA DPL Invert':'False',
+            'Rx / TA  Network ID':'659',
+            'Direct / Talkaround':'False',
+            'Direct Squelch Type':'PL',
+            'Direct PL Freq':'67.0',
+            'Direct PL Code':'XZ',
+            'Tx Deviation / Channel Spacing': '4 kHz / 20 kHz',
+            'Name':'8TAC91',
+            'Direct Network ID':'659',
+            'User Selectable PL [MPL]':'Disabled',
+            'Direct Frequency (MHz)':'851.512500',
+            'Direct DPL Code':'023',
+            'Direct DPL Invert':'False',
+        }
+    },
+
+    # -- 8TAC91D Personality
+    {
+        'group_name': '8TAC91D Personality',
         'base_xpath': ".//Recset[@Name='Conventional Personality']//EmbeddedNode[@ReferenceKey='8TAC91D']",
         'context_node_name': 'Conventional Personality',
         'fields': {
@@ -137,11 +180,9 @@ CHECKS_TO_PERFORM = [
             'Rx / TA DPL Code':'023',
             'Rx / TA DPL Invert':'False',
             'Rx / TA  Network ID':'659',
-            'Direct / Talkaround':'True',
             'Direct Squelch Type':'PL',
             'Direct PL Freq':'67.0',
             'Direct PL Code':'XZ',
-            # 'ASTRO Talkgroup ID':'TG 1',
             'Tx Deviation / Channel Spacing': '4 kHz / 20 kHz',
             'Name':'8TAC91D',
             'Direct Network ID':'659',
@@ -151,8 +192,224 @@ CHECKS_TO_PERFORM = [
             'Direct DPL Invert':'False',
         }
     },
+    
+    # -- 8TAC92 Personality --
+    {
+        'group_name': '8TAC92 Personality',
+        'base_xpath': ".//Recset[@Name='Conventional Personality']//EmbeddedNode[@ReferenceKey='8TAC92']",
+        'context_node_name': 'Conventional Personality',
+        'fields': {
+            'Rx / TA Frequency (MHz)': '852.012500',
+            'User Selectable PL (MPL)':'False',
+            'Tx Squelch Type':'PL',
+            'Tx DPL Code':'023',
+            'Tx DPL Invert':'False',
+            'Rx / TA Squelch Type':'PL',
+            'Tx Frequency (MHz)':'807.012500',
+            'Tx Network ID':'659',
+            'Tx PL Code':'5A',
+            'Tx PL Freq':'156.7',
+            'Rx / TA  PL Code':'5A',
+            'Rx / TA PL Freq':'156.7',
+            'Rx / TA DPL Code':'023',
+            'Rx / TA DPL Invert':'False',
+            'Rx / TA  Network ID':'659',
+            'Direct / Talkaround':'False',
+            'Direct Squelch Type':'PL',
+            'Direct PL Freq':'67.0',
+            'Direct PL Code':'XZ',
+            'Tx Deviation / Channel Spacing': '4 kHz / 20 kHz',
+            'Name':'8TAC92',
+            'Direct Network ID':'659',
+            'User Selectable PL [MPL]':'Disabled',
+            'Direct Frequency (MHz)':'852.012500',
+            'Direct DPL Code':'023',
+            'Direct DPL Invert':'False',
+        }
+    },
+    
+    # -- 8TAC92D Personality --
+    {
+        'group_name': '8TAC92D Personality',
+        'base_xpath': ".//Recset[@Name='Conventional Personality']//EmbeddedNode[@ReferenceKey='8TAC92D']",
+        'context_node_name': 'Conventional Personality',
+        'fields': {
+            'Rx / TA Frequency (MHz)': '852.012500',
+            'User Selectable PL (MPL)':'False',
+            'Tx Squelch Type':'PL',
+            'Tx DPL Code':'023',
+            'Tx DPL Invert':'False',
+            'Rx / TA Squelch Type':'PL',
+            'Tx Frequency (MHz)':'852.012500',
+            'Tx Network ID':'659',
+            'Tx PL Code':'5A',
+            'Tx PL Freq':'156.7',
+            'Rx / TA  PL Code':'5A',
+            'Rx / TA PL Freq':'156.7',
+            'Rx / TA DPL Code':'023',
+            'Rx / TA DPL Invert':'False',
+            'Rx / TA  Network ID':'659',
+            # 'Direct / Talkaround':'True',
+            'Direct Squelch Type':'PL',
+            'Direct PL Freq':'67.0',
+            'Direct PL Code':'XZ',
+            'Tx Deviation / Channel Spacing': '4 kHz / 20 kHz',
+            'Name':'8TAC92D',
+            'Direct Network ID':'659',
+            'User Selectable PL [MPL]':'Disabled',
+            'Direct Frequency (MHz)':'852.012500',
+            'Direct DPL Code':'023',
+            'Direct DPL Invert':'False',
+        }
+    },
 
-        # -- GW IO 1 --
+    # Personality
+    # -- 8TAC93 Personality
+    {
+        'group_name': '8TAC93 Personality',
+        'base_xpath': ".//Recset[@Name='Conventional Personality']//EmbeddedNode[@ReferenceKey='8TAC93']",
+        'context_node_name': 'Conventional Personality',
+        'fields': {
+            'Rx / TA Frequency (MHz)': '852.512500',
+            'User Selectable PL (MPL)':'False',
+            'Tx Squelch Type':'PL',
+            'Tx DPL Code':'023',
+            'Tx DPL Invert':'False',
+            'Rx / TA Squelch Type':'PL',
+            'Tx Frequency (MHz)':'807.512500',
+            'Tx Network ID':'659',
+            'Tx PL Code':'5A',
+            'Tx PL Freq':'156.7',
+            'Rx / TA  PL Code':'5A',
+            'Rx / TA PL Freq':'156.7',
+            'Rx / TA DPL Code':'023',
+            'Rx / TA DPL Invert':'False',
+            'Rx / TA  Network ID':'659',
+            'Direct / Talkaround':'False',
+            'Direct Squelch Type':'PL',
+            'Direct PL Freq':'67.0',
+            'Direct PL Code':'XZ',
+            'Tx Deviation / Channel Spacing': '4 kHz / 20 kHz',
+            'Name':'8TAC93',
+            'Direct Network ID':'659',
+            'User Selectable PL [MPL]':'Disabled',
+            'Direct Frequency (MHz)':'852.512500',
+            'Direct DPL Code':'023',
+            'Direct DPL Invert':'False',
+        }
+    },
+
+    # Personality
+    # -- 8TAC93D
+    {
+        'group_name': '8TAC93D Personality',
+        'base_xpath': ".//Recset[@Name='Conventional Personality']//EmbeddedNode[@ReferenceKey='8TAC93D']",
+        'context_node_name': 'Conventional Personality',
+        'fields': {
+            'Rx / TA Frequency (MHz)': '852.512500',
+            'User Selectable PL (MPL)':'False',
+            'Tx Squelch Type':'PL',
+            'Tx DPL Code':'023',
+            'Tx DPL Invert':'False',
+            'Rx / TA Squelch Type':'PL',
+            'Tx Frequency (MHz)':'852.512500',
+            'Tx Network ID':'659',
+            'Tx PL Code':'5A',
+            'Tx PL Freq':'156.7',
+            'Rx / TA  PL Code':'5A',
+            'Rx / TA PL Freq':'156.7',
+            'Rx / TA DPL Code':'023',
+            'Rx / TA DPL Invert':'False',
+            'Rx / TA  Network ID':'659',
+            # 'Direct / Talkaround':'True',
+            'Direct Squelch Type':'PL',
+            'Direct PL Freq':'67.0',
+            'Direct PL Code':'XZ',
+            'Tx Deviation / Channel Spacing': '4 kHz / 20 kHz',
+            'Name':'8TAC93D',
+            'Direct Network ID':'659',
+            'User Selectable PL [MPL]':'Disabled',
+            'Direct Frequency (MHz)':'852.512500',
+            'Direct DPL Code':'023',
+            'Direct DPL Invert':'False',
+        }
+    },
+    # 
+    # -- 8TAC94
+    {
+        'group_name': '8TAC94 Personality',
+        'base_xpath': ".//Recset[@Name='Conventional Personality']//EmbeddedNode[@ReferenceKey='8TAC94']",
+        'context_node_name': 'Conventional Personality',
+        'fields': {
+            'Rx / TA Frequency (MHz)': '853.012500',
+            'User Selectable PL (MPL)':'False',
+            'Tx Squelch Type':'PL',
+            'Tx DPL Code':'023',
+            'Tx DPL Invert':'False',
+            'Rx / TA Squelch Type':'PL',
+            'Tx Frequency (MHz)':'808.012500',
+            'Tx Network ID':'659',
+            'Tx PL Code':'5A',
+            'Tx PL Freq':'156.7',
+            'Rx / TA  PL Code':'5A',
+            'Rx / TA PL Freq':'156.7',
+            'Rx / TA DPL Code':'023',
+            'Rx / TA DPL Invert':'False',
+            'Rx / TA  Network ID':'659',
+            'Direct / Talkaround':'False',
+            'Direct Squelch Type':'PL',
+            'Direct PL Freq':'67.0',
+            'Direct PL Code':'XZ',
+            'Tx Deviation / Channel Spacing': '4 kHz / 20 kHz',
+            'Name':'8TAC94',
+            'Direct Network ID':'659',
+            'User Selectable PL [MPL]':'Disabled',
+            'Direct Frequency (MHz)':'853.012500',
+            'Direct DPL Code':'023',
+            'Direct DPL Invert':'False',
+        }
+    },
+
+    # -- 8TAC94D
+    {
+        'group_name': '8TAC94D Personality',
+        'base_xpath': ".//Recset[@Name='Conventional Personality']//EmbeddedNode[@ReferenceKey='8TAC94D']",
+        'context_node_name': 'Conventional Personality',
+        'fields': {
+            'Rx / TA Frequency (MHz)': '853.012500',
+            'User Selectable PL (MPL)':'False',
+            'Tx Squelch Type':'PL',
+            'Tx DPL Code':'023',
+            'Tx DPL Invert':'False',
+            'Rx / TA Squelch Type':'PL',
+            'Tx Frequency (MHz)':'853.012500',
+            'Tx Network ID':'659',
+            'Tx PL Code':'5A',
+            'Tx PL Freq':'156.7',
+            'Rx / TA  PL Code':'5A',
+            'Rx / TA PL Freq':'156.7',
+            'Rx / TA DPL Code':'023',
+            'Rx / TA DPL Invert':'False',
+            'Rx / TA  Network ID':'659',
+            # 'Direct / Talkaround':'True',
+            'Direct Squelch Type':'PL',
+            'Direct PL Freq':'67.0',
+            'Direct PL Code':'XZ',
+            'Tx Deviation / Channel Spacing': '4 kHz / 20 kHz',
+            'Name':'8TAC94D',
+            'Direct Network ID':'659',
+            'User Selectable PL [MPL]':'Disabled',
+            'Direct Frequency (MHz)':'853.012500',
+            'Direct DPL Code':'023',
+            'Direct DPL Invert':'False',
+        }
+    },
+
+    # ----------------------------------------------------------
+    # ------ Channels ------
+    # ----------------------------------------------------------
+
+    # -- GW IO 1 --
     {
         'group_name': 'INTEROP - GW IO 1',
         'base_xpath': ".//Recset[@Name='Zone Channel Assignment']/Node[contains(@ReferenceKey, 'INTEROP')]//EmbeddedNode[@ReferenceKey='1-GW IO 1']",
@@ -166,7 +423,8 @@ CHECKS_TO_PERFORM = [
             'Active Channel': 'True'
         }
     },
-        # -- GW IO 2 --
+    
+    # -- GW IO 2 --
     {
         'group_name': 'INTEROP - GW IO 2',
         'base_xpath': ".//Recset[@Name='Zone Channel Assignment']/Node[contains(@ReferenceKey, 'INTEROP')]//EmbeddedNode[@ReferenceKey='2-GW IO 2']",
@@ -180,7 +438,8 @@ CHECKS_TO_PERFORM = [
             'Active Channel': 'True'
         }
     },
-        # -- GW IO 3 --
+    
+    # -- GW IO 3 --
     {
         'group_name': 'INTEROP - GW IO 3',
         'base_xpath': ".//Recset[@Name='Zone Channel Assignment']/Node[contains(@ReferenceKey, 'INTEROP')]//EmbeddedNode[@ReferenceKey='3-GW IO 3']",
@@ -194,7 +453,8 @@ CHECKS_TO_PERFORM = [
             'Active Channel': 'True'
         }
     },
-        # -- GW IO 4 --
+
+    # -- GW IO 4 --
     {
         'group_name': 'INTEROP - GW IO 4',
         'base_xpath': ".//Recset[@Name='Zone Channel Assignment']/Node[contains(@ReferenceKey, 'INTEROP')]//EmbeddedNode[@ReferenceKey='4-GW IO 4']",
@@ -238,7 +498,8 @@ CHECKS_TO_PERFORM = [
             'Active Channel': 'True'
         }
     },
-        # -- 8CALL90 --
+
+    # -- 8CALL90 Channel--
     {
         'group_name': 'INTEROP - 8CALL90',
         'base_xpath': ".//Recset[@Name='Zone Channel Assignment']/Node[contains(@ReferenceKey, 'INTEROP')]//EmbeddedNode[@ReferenceKey='7-8CALL90']",
@@ -251,6 +512,7 @@ CHECKS_TO_PERFORM = [
             'Active Channel': 'True'
         }
     },
+
 ]
 
 def _extract_metadata(root):
@@ -498,7 +760,7 @@ def main():
             max_length = max(max_length, len(column_title)) + 1 # the column header may be longer
             worksheet.column_dimensions[column_letter].width = max_length # Set the column width
 
-    input("Press Enter to exit...") # hold the terminal open for .exe users
+    input("Press Enter to exit...") # hold the terminal open for .exe users 
 
 if __name__ == "__main__":
     main()
