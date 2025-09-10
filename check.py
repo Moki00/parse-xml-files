@@ -298,11 +298,13 @@ def _process_check_group(root, group, metadata, serial, model, mobile_hh):
             field_elements = parent.xpath(f".//Field[@Name='{field_name}']")
 
             if not field_elements:
+                print(f"Bad File = {serial}.xml") # See Bad File in terminal
                 error_rows.append([serial, metadata['alias'], metadata['gwinnett_id'], system_context, group_name, field_name, "Setting Missing", expected_value, "N/A", model, mobile_hh])
                 continue
 
             actual_value = field_elements[0].text or ""
             if actual_value != expected_value:
+                print(f"Bad File = {serial}.xml") # See Bad File in terminal
                 error_rows.append([serial, metadata['alias'], metadata['gwinnett_id'], system_context, group_name, field_name, "Incorrect Value", expected_value, actual_value, model, mobile_hh])
                 
     return error_rows
@@ -417,7 +419,6 @@ def _validate_talkgroup_match(root, metadata, filename):
     
     return error_rows
 
-
 # Check XML file
 def check_xml_file(filepath, report_rows):
     try:
@@ -447,6 +448,7 @@ def check_xml_file(filepath, report_rows):
             discrepancies_in_file.extend(talkgroup_errors)
 
         if not discrepancies_in_file:
+            print(f"OK File = {filename}") # See Good File in terminal
             success_row = [serial, metadata['alias'], metadata['gwinnett_id'], "OK", "OK", "OK", "OK", "OK", "OK", model, mobile]
             report_rows.append(success_row)
             return False
@@ -459,7 +461,6 @@ def check_xml_file(filepath, report_rows):
         return True
 
 def main():
-    print("Starting check...")
     xml_files = glob.glob('*.xml') # Find all XML files in folder
     total_files = len(xml_files)
 
@@ -496,6 +497,8 @@ def main():
             max_length = df[column_title].astype(str).map(len).max() # max length of content
             max_length = max(max_length, len(column_title)) + 1 # the column header may be longer
             worksheet.column_dimensions[column_letter].width = max_length # Set the column width
+
+    input("Press Enter to exit...") # hold the terminal open for .exe users
 
 if __name__ == "__main__":
     main()
