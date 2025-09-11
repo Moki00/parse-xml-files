@@ -732,8 +732,8 @@ def adjust_column_width(worksheet):
         
         try:
             header_row = worksheet[1]
-            col_idx = column_index_from_string(col_letter) - 1
-            header_cell = header_row[col_idx]
+            col_i = column_index_from_string(col_letter) - 1
+            header_cell = header_row[col_i]
             header_len = len(str(header_cell.value)) # header length if longer
             max_length = max(max_length, header_len)
         except(IndexError, TypeError):
@@ -764,10 +764,10 @@ def _generate_report(report_filename, report_rows, files_with_errors, total_file
         green_fill = PatternFill(start_color=GREEN, end_color=GREEN, fill_type="solid") # Green fill
         red_fill = PatternFill(start_color=RED, end_color=RED, fill_type="solid") # Red fill
 
-        for row in worksheet.iter_rows(min_row=1, max_row=worksheet.max_row, min_col=1, max_col=12):
+        for row in worksheet.iter_rows(min_row=1, max_row=worksheet.max_row, min_col=1, max_col=11):
             for cell in row:
                 cell.fill = black_fill
-                cell.font = Font(bold=False, size=11, color=WHITE) # White font
+                cell.font = Font(bold=False, size=11, color=WHITE, name='Arial') # White font
                 cell.alignment = Alignment(horizontal='left', vertical='center')
 
         # Header
