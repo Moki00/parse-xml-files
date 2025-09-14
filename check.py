@@ -58,7 +58,7 @@ CHECKS_TO_PERFORM = [
 
     # -- 8CALL90 Personality
     {
-        'group_name': 'Channel: 8CALL90',
+        'group_name': '8CALL90 Personality',
         'base_xpath': ".//Recset[@Name='Conventional Personality']//EmbeddedNode[@ReferenceKey='8CALL90']",
         'context_node_name': 'Conventional Personality',
         'fields': {
