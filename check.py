@@ -517,24 +517,43 @@ CHECKS_TO_PERFORM = [
 
 ]
 
+def _get_unit_id_for_system(root, system_name_contains):
+    """
+    Returns an integer ID for a Trunking System whose ReferenceKey contains the given name.
+    """
+    xpath = f".//Recset[@Name='Trunking System']/Node[contains(@ReferenceKey, '{system_name_contains}')]/Section[@Name='General']/Field[@Name='Unit ID']"
+    
+    elements = root.xpath(xpath)
+    if elements and elements[0].text:
+        try:
+            return int(elements[0].text.strip())
+        except (ValueError, TypeError):
+            print(f"Warning: Could not convert Unit ID for '{system_name_contains}' to an integer.")
+    return 0
+
 def _extract_metadata(root):
     metadata={
         "alias": "",
-        "gwinnett_id": 0
+        "gwinnett_id": 0,
+        "dekalb_id": 0,
+        "hall_id": 0,
+        "cobb_id": 0,
+        "atlanta_id": 0,
+        "fulton_id": 0
     }
 
-    alias_xpath = ".//Recset[@Name='Radio Wide']//Field[@Name='User Information\\Radio Alias']"
-    alias_elements = root.xpath(alias_xpath)
+    # Extract Alias
+    alias_elements = root.xpath(".//Recset[@Name='Radio Wide']//Field[@Name='User Information\\Radio Alias']")
     if alias_elements and alias_elements[0].text:
         metadata["alias"] = alias_elements[0].text.strip()
-
-    gwinnett_xpath = ".//Recset[@Name='Trunking System']/Node[@Name='Trunking System']/Section[@Name='General']/Field[@Name='Unit ID']"
-    gwinnett_elements = root.xpath(gwinnett_xpath)
-    if gwinnett_elements and gwinnett_elements[0].text:
-        try:
-            metadata["gwinnett_id"] = int(gwinnett_elements[0].text.strip())
-        except (ValueError, TypeError):
-            print(f"Warning: Could not convert Unit ID '{gwinnett_elements[0].text}' to an integer.")
+    
+    # Extract Unit IDs for each system
+    metadata["gwinnett_id"] = _get_unit_id_for_system(root, "GWINNETT")
+    metadata["dekalb_id"] = _get_unit_id_for_system(root, "Dekalb")
+    metadata["hall_id"] = _get_unit_id_for_system(root, "HALL")
+    metadata["cobb_id"] = _get_unit_id_for_system(root, "UASI")
+    metadata["atlanta_id"] = _get_unit_id_for_system(root, "Atlanta")
+    metadata["fulton_id"] = _get_unit_id_for_system(root, "Fulton")
 
     return metadata
 
@@ -544,7 +563,7 @@ def _process_check_group(root, group, metadata, serial, model, mobile_hh):
     parents = root.xpath(group['base_xpath'])
 
     if not parents:
-        error_rows.append([serial, metadata['alias'], metadata['gwinnett_id'], "N/A", group_name, "N/A", "Section Missing", "N/A", "N/A", model, mobile_hh])
+        error_rows.append([serial, metadata['alias'], metadata['gwinnett_id'], "N/A", group_name, "N/A", "Section Missing", "N/A", "N/A", model, mobile_hh, metadata['dekalb_id'], metadata['hall_id'], metadata['cobb_id'], metadata['atlanta_id'], metadata['fulton_id']])
         return error_rows
 
     for parent in parents:
@@ -563,13 +582,13 @@ def _process_check_group(root, group, metadata, serial, model, mobile_hh):
 
             if not field_elements:
                 # print(f"Bad File = {serial}.xml") # See Bad File in terminal
-                error_rows.append([serial, metadata['alias'], metadata['gwinnett_id'], system_context, group_name, field_name, "Setting Missing", expected_value, "N/A", model, mobile_hh])
+                error_rows.append([serial, metadata['alias'], metadata['gwinnett_id'], system_context, group_name, field_name, "Setting Missing", expected_value, "N/A", model, mobile_hh, metadata['dekalb_id'], metadata['hall_id'], metadata['cobb_id'], metadata['atlanta_id'], metadata['fulton_id']])
                 continue
 
             actual_value = field_elements[0].text or ""
             if actual_value != expected_value:
                 # print(f"Bad File = {serial}.xml") # See Bad File in terminal
-                error_rows.append([serial, metadata['alias'], metadata['gwinnett_id'], system_context, group_name, field_name, "Incorrect Value", expected_value, actual_value, model, mobile_hh])
+                error_rows.append([serial, metadata['alias'], metadata['gwinnett_id'], system_context, group_name, field_name, "Incorrect Value", expected_value, actual_value, model, mobile_hh, metadata['dekalb_id'], metadata['hall_id'], metadata['cobb_id'], metadata['atlanta_id'], metadata['fulton_id']])
                 
     return error_rows
 
@@ -709,7 +728,7 @@ def check_xml_file(filepath, report_rows):
             discrepancies_in_file.extend(talkgroup_errors)
 
         if not discrepancies_in_file:
-            success_row = [serial, metadata['alias'], metadata['gwinnett_id'], "OK", "OK", "OK", "OK", "OK", "OK", model, mobile]
+            success_row = [serial, metadata['alias'], metadata['gwinnett_id'], "OK", "OK", "OK", "OK", "OK", "OK", model, mobile, metadata['dekalb_id'], metadata['hall_id'], metadata['cobb_id'], metadata['atlanta_id'], metadata['fulton_id']]
             report_rows.append(success_row)
             return False
         else:
@@ -717,7 +736,7 @@ def check_xml_file(filepath, report_rows):
             return True
 
     except ET.XMLSyntaxError:
-        report_rows.append([os.path.basename(filepath), "File Error", "Alias", "ID", "Sys", "Group","Could not parse XML", "value", "value", "model", "type"])
+        report_rows.append([os.path.basename(filepath), "File Error", "Alias", "ID", "Sys", "Group","Could not parse XML", "value", "value", "model", "type", "dekalb_id"])
         return True
 
 # Adjust Excel column widths
@@ -739,14 +758,13 @@ def adjust_column_width(worksheet):
         except(IndexError, TypeError):
             pass
 
-        worksheet.column_dimensions[col_letter].width = max_length + 1.5 #Return
-    worksheet.column_dimensions["L"].width = 55 #Last column
+        worksheet.column_dimensions[col_letter].width = max_length + 1.5 #Return padding
 
 # Generate Excel report
 def _generate_report(report_filename, report_rows, files_with_errors, total_files):
     with pd.ExcelWriter(report_filename, engine='openpyxl') as writer:
     
-        header = ['Serial', 'Alias', 'ID', 'Setting','Reference', 'Group','Problem', 'Expected', 'Actual', 'Model', 'Type']
+        header = ['Filename', 'Alias', 'Gwinnett', 'Setting','Reference', 'Group','Problem', 'Expected', 'Actual', 'Model', 'Type', 'Dekalb', 'Hall', 'Cobb', 'Atlanta', 'Fulton']
         df = pd.DataFrame(report_rows, columns=header)
         sheet_name = f'{files_with_errors} of {total_files} files have errors'
         df.to_excel(writer, sheet_name=sheet_name, index=False)
@@ -764,7 +782,7 @@ def _generate_report(report_filename, report_rows, files_with_errors, total_file
         green_fill = PatternFill(start_color=GREEN, end_color=GREEN, fill_type="solid") # Green fill
         red_fill = PatternFill(start_color=RED, end_color=RED, fill_type="solid") # Red fill
 
-        for row in worksheet.iter_rows(min_row=1, max_row=worksheet.max_row, min_col=1, max_col=11):
+        for row in worksheet.iter_rows(min_row=1, max_row=worksheet.max_row, min_col=1, max_col=16):
             for cell in row:
                 cell.fill = black_fill
                 cell.font = Font(bold=False, size=11, color=WHITE, name='Arial') # White font
@@ -777,7 +795,7 @@ def _generate_report(report_filename, report_rows, files_with_errors, total_file
             cell.alignment = Alignment(horizontal='center', vertical='center')
 
         # Data rows
-        for row in worksheet.iter_rows(min_row=2, max_row=worksheet.max_row, min_col=1, max_col=11):
+        for row in worksheet.iter_rows(min_row=2, max_row=worksheet.max_row, min_col=1, max_col=16):
             for cell in row:
                 cell.fill = black_fill
                 cell.font = Font(bold=False, size=11, color=WHITE) # White font for data
