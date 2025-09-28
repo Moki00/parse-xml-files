@@ -736,7 +736,7 @@ def check_xml_file(filepath, report_rows):
             return True
 
     except ET.XMLSyntaxError:
-        report_rows.append([os.path.basename(filepath), "File Error", "Alias", "ID", "Sys", "Group","Could not parse XML", "value", "value", "model", "type", "dekalb_id"])
+        report_rows.append([os.path.basename(filepath), "File Error", "Alias", "ID", "Sys", "Group","Could not parse XML", "value", "value", "model", "type", "dekalb_id", "hall_id", "cobb_id", "atlanta_id", "fulton_id"])
         return True
 
 # Adjust Excel column widths
@@ -764,7 +764,7 @@ def adjust_column_width(worksheet):
 def _generate_report(report_filename, report_rows, files_with_errors, total_files):
     with pd.ExcelWriter(report_filename, engine='openpyxl') as writer:
     
-        header = ['Filename', 'Alias', 'Gwinnett', 'Setting','Reference', 'Group','Problem', 'Expected', 'Actual', 'Model', 'Type', 'Dekalb', 'Hall', 'Cobb', 'Atlanta', 'Fulton']
+        header = ['Filename', 'Alias', 'Gw ID', 'Setting','Reference', 'Group','Problem', 'Expected', 'Actual', 'Model', 'Type', 'Dekalb', 'Hall', 'Cobb', 'Atlanta', 'Fulton']
         df = pd.DataFrame(report_rows, columns=header)
         sheet_name = f'{files_with_errors} of {total_files} files have errors'
         df.to_excel(writer, sheet_name=sheet_name, index=False)
