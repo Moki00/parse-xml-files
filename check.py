@@ -876,7 +876,7 @@ def adjust_column_width(worksheet):
 def _generate_report(report_filename, report_rows, files_with_errors, total_files):
     with pd.ExcelWriter(report_filename, engine='openpyxl') as writer:
     
-        header = ['Filename', 'Alias', 'Gw ID', 'Setting','Reference', 'Group','Problem', 'Expected', 'Actual', 'Model', 'Type', 'Dekalb', 'TD-Dek', 'Fulton', 'TD-Ful', 'Atlanta', 'TD-Atl', 'Cobb', 'TD-Cob', 'Hall', 'TD-Hal', 'TD-Gw', 'TD-Alias']
+        header = ['Filename', 'XML-Alias', 'XML-Gw', 'Setting','Reference', 'Group','Problem', 'Expected', 'Actual', 'Model', 'Type', 'Dekalb', 'TD-Dek', 'Fulton', 'TD-Ful', 'Atlanta', 'TD-Atl', 'Cobb', 'TD-Cob', 'Hall', 'TD-Hal', 'TD-Gw', 'TD-Alias']
         # This is where the error occurs:
         df = pd.DataFrame(report_rows, columns=header)
         sheet_name = f'{files_with_errors} of {total_files} files have errors'
@@ -999,58 +999,51 @@ def main():
 
     print("Motorola Codeplug Checker")
     print("by Morgan King, Gwinnett County")
-    use_api = True
+    use_api = False # Change to True to use API if available
     df_td = None # DataFrame for Radio assets from TD
 
     # --- API ---
     # todo get_asset_details 
     print("Fetching Radio Assets from API...")
-    # BASE_URL = "https://support.gwinnettcounty.com/SBTDWebApi"
-    BASE_URL = "https---breakingThisOnPurpose.com/SBTDWebApi" # Prevent accidental API calls during testing
+    BASE_URL = "https://support.gwinnettcounty.com/SBTDWebApi"
     ASSET_APP_ID = 279
     RADIO_ASSET_FORM_ID = 9856
     USERNAME = os.getenv("TD_USERNAME")
     PASSWORD = os.getenv("TD_PASSWORD")
 
-    client = TeamDynamixSandboxClient(base_url=BASE_URL, asset_app_id=ASSET_APP_ID)
-
-    if client.authenticate(username=USERNAME, password=PASSWORD):
-        radio_assets = client.get_all_assets(form_id=RADIO_ASSET_FORM_ID)
-
-        if radio_assets:
-            df_td = pd.DataFrame(radio_assets)
-            print(f"Fetched {len(df_td)} radio assets from API.")
-            df_td.to_excel('RadioAssets.xlsx', index=False)
-            print("Saved radio assets to 'RadioAssets.xlsx'.")
-            print(df_td.head()) # Display first few rows
+    if use_api:
+        api_client = TeamDynamixSandboxClient(BASE_URL, ASSET_APP_ID)
+        if api_client.authenticate(USERNAME, PASSWORD):
+            radio_assets = api_client.get_all_assets(RADIO_ASSET_FORM_ID)
+            if radio_assets:
+                df_td = pd.DataFrame(radio_assets)
+                print(f"Fetched {len(df_td)} radio assets from API.")
+                df_td.to_excel('RadioAssets.xlsx', index=False)
+                print("Saved radio assets to 'RadioAssets.xlsx'.")
+                print(df_td.head()) # Display first few rows
+            else:
+                use_api = False # Fallback to TD.xlsx
+                print("Failed to fetch radio assets from API.")
         else:
             use_api = False
-            print("Failed to fetch radio assets from API.")
-    else:
-        use_api = False
-        print("Failed to authenticate with API.")
+            print("Failed to authenticate with API.")
 
     # Load TD.xlsx if API fetch not used or failed
     if not use_api:
-        print("Loading TD.xlsx...")
-        td_file = 'TD.xlsx'
-        
+        print("Loading TD.xlsx...")        
         try:
-            df_td = pd.read_excel(td_file)
+            df_td = pd.read_excel('TD.xlsx')
             print("TD.xlsx loaded.")
         except FileNotFoundError:
-            print(f"Warning: '{td_file}' not found in the current directory.")
-        except ImportError:
-            print("Error: 'openpyxl' library is required to read Excel files.")
-            print("Install it using 'pip install openpyxl'")
-            input("Press Enter to exit...") # hold terminal open
+            print(f"Warning: '{'TD.xlsx'}' not found in the current directory.")
+        except Exception as e:
+            print(f"Error loading 'TD.xlsx': {e}")
             return    
 
     print("Checking XML Codeplugs...")
     xml_files = glob.glob('*.xml') # Find all XML files in folder
     if not xml_files:
         print("No XML Codeplugs in this folder.")
-        print("Run this program in a folder with XML Codeplugs.")
         input("Press Enter to exit...") # hold terminal open
         return
 
