@@ -838,7 +838,7 @@ def check_xml_file(filepath, report_rows):
             discrepancies_in_file.extend(talkgroup_errors)
 
         if not discrepancies_in_file:
-            success_row = [serial, metadata['alias'], metadata['gwinnett_id'], "OK", "OK", "OK", "OK", "OK", "OK", model, mobile, metadata['dekalb_id'], "DEK", metadata['fulton_id'], "Fulton", metadata['atlanta_id'], "Atl", metadata['cobb_id'], "17D", metadata['hall_id'], "1DE" , "td-gw", "TD-Alias"]
+            success_row = [serial, metadata['alias'], metadata['gwinnett_id'], "OK", "OK", "OK", "OK", "OK", "OK", model, mobile, metadata['dekalb_id'], "TD-Dek", metadata['fulton_id'], "TD-Ful", metadata['atlanta_id'], "TD-Atl", metadata['cobb_id'], "TD-Cobb", metadata['hall_id'], "TD-Hall" , "TD-Gw", "TD-Alias"]
             report_rows.append(success_row)
             return False
         else:
@@ -848,7 +848,7 @@ def check_xml_file(filepath, report_rows):
     except ETREE.XMLSyntaxError:
         # this should not happen due to prior validation
         print(f"Error: Could not parse XML file '{filepath}'.")
-        report_rows.append([os.path.basename(filepath), "Error!", "Alias", "ID", "Setting", "Ref", "Group", "Could not parse XML", "Expect", "Actual", "model", "type", "Dekalb", "1F5","Fulton","5B2","Atlanta","293","Cobb", "UASI", "Hall", "TD-Hal", "TD-Gw", "TD-Alias"])
+        report_rows.append([os.path.basename(filepath), "Error!", "Alias", "ID", "Setting", "Ref", "Group", "Could not parse XML", "Expect", "Actual", "model", "type", "Dekalb", "TD-Dek","Fulton","TD-Ful","Atlanta","TD-Atl","Cobb", "TD-Cobb", "Hall", "TD-Hall", "TD-Gw", "TD-Alias"])
         return True
 
 # Adjust Excel column widths
@@ -873,12 +873,9 @@ def adjust_column_width(worksheet):
         worksheet.column_dimensions[col_letter].width = max_length + 1.5 #Return padding
 
 # Generate Excel report
-def _generate_report(report_filename, report_rows, files_with_errors, total_files):
+def _generate_report(report_filename, df, files_with_errors, total_files):
     with pd.ExcelWriter(report_filename, engine='openpyxl') as writer:
     
-        header = ['Filename', 'XML-Alias', 'XML-Gw', 'Setting','Reference', 'Group','Problem', 'Expected', 'Actual', 'Model', 'Type', 'Dekalb', 'TD-Dek', 'Fulton', 'TD-Ful', 'Atlanta', 'TD-Atl', 'Cobb', 'TD-Cob', 'Hall', 'TD-Hal', 'TD-Gw', 'TD-Alias']
-        # This is where the error occurs:
-        df = pd.DataFrame(report_rows, columns=header)
         sheet_name = f'{files_with_errors} of {total_files} files have errors'
         df.to_excel(writer, sheet_name=sheet_name, index=False)
 
@@ -908,7 +905,8 @@ def _generate_report(report_filename, report_rows, files_with_errors, total_file
             cell.alignment = Alignment(horizontal='center', vertical='center')
 
         # Data rows with 22 columns
-        for row in worksheet.iter_rows(min_row=2, max_row=worksheet.max_row, min_col=1, max_col=len(header)):
+        header_length = len(df.columns.tolist())
+        for row in worksheet.iter_rows(min_row=2, max_row=worksheet.max_row, min_col=1, max_col=header_length):
 
             dekalb_id = row[11]  # Dekalb TD column (12th column, index 11)
             dekalb_td_id = row[12] # Dekalb TD column (13th column, index 12)
@@ -1059,30 +1057,62 @@ def main():
         if check_xml_file(filepath, report_rows):
             files_with_errors += 1
 
-    # add data from TD.xlsx to report
-    rows_with_td = []
-    if df_td is not None:
-        serial_col = 'SerialNumber' if use_api else 'Serial Number'
-        for row in report_rows:
-            serial = str(row[0]).strip()
-            td_match = df_td[df_td[serial_col] == serial]
-            if not td_match.empty:
-                td_dekalb = td_match.iloc[0].get('(1F5) Dekalb', 'N/A')
-                td_fulton = td_match.iloc[0].get('(5B2) Fulton', 'N/A')
-                td_atlanta = td_match.iloc[0].get('(293) Atlanta', 'N/A')
-                td_cobb = td_match.iloc[0].get('(17D) Cobb', 'N/A')
-                td_hall = td_match.iloc[0].get('(1DE) Hall', 'N/A')
-                td_gwinnett = td_match.iloc[0].get('(027A) Gwinnett', 'N/A')
-                td_alias = td_match.iloc[0].get('Radio User Alias', 'N/A')
-                new_row = row[:12] + [td_dekalb, row[13], td_fulton, row[15], td_atlanta, row[17], td_cobb, row[19], td_hall, td_gwinnett, td_alias]
-                rows_with_td.append(new_row)
-            else:
-                new_row = row + ['no Dekalb', row[13], 'no Fulton', row[15], 'no Atlanta', row[17], 'no Cobb', row[19], 'no Hall', 'no Gwinnett', 'no Alias']
-                rows_with_td.append(new_row)
-        report_rows = rows_with_td
+    xml_header = ['Serial', 'XML-Alias', 'XML-Gw', 'Setting','Reference', 'Group','Problem', 'Expected', 'Actual', 'Model', 'Type', 'Dekalb', 'TD-Dekalb', 'Fulton', 'TD-Fulton', 'Atlanta', 'TD-Atl', 'Cobb', 'TD-Cobb', 'Hall', 'TD-Hall', 'TD-Gw', 'TD-Alias']
+    df_report = pd.DataFrame(report_rows, columns=xml_header)
 
-    # Generate report
-    _generate_report(report_filename, report_rows, files_with_errors, total_files)
+    # add data from TD.xlsx to report
+    # rows_with_td = []
+    if df_td is not None:
+        print("Merging data from TD.xlsx into report...")
+
+        td_col_names = {
+            'Serial': 'SerialNumber' if use_api else 'Serial Number',
+            'Dekalb': '(1F5) Dekalb',
+            'Fulton': '(5B2) Fulton',
+            'Atlanta': '(293) Atlanta',
+            'Cobb': '(17D) Cobb',
+            'Hall': '(1DE) Hall',
+            'Gwinnett': '(027A) Gwinnett',
+            'Alias': 'Radio User Alias'
+        }
+
+        # Create a list of columns we need from the TD data
+        cols_to_keep = [td_col_names['Serial']] + [v for k, v in td_col_names.items() if k != 'Serial' and v in df_td.columns]
+        df_td_filtered = df_td[cols_to_keep].copy()
+
+        # Rename columns for the final report
+        final_td_cols = {
+            td_col_names['Serial']: 'Serial', # This is the merge key
+            td_col_names['Dekalb']: 'TD-Dekalb',
+            td_col_names['Fulton']: 'TD-Fulton', # This needs to go into column 15
+            td_col_names['Atlanta']: 'TD-Atl', # This needs to go into column 17
+            td_col_names['Cobb']: 'TD-Cobb', # This needs to go into column 19
+            td_col_names['Hall']: 'TD-Hall', # This needs to go into column 21
+            td_col_names['Gwinnett']: 'TD-Gw', # This needs to go into column 23
+            td_col_names['Alias']: 'TD-Alias' # This needs to go into column 24
+        }
+        df_td_filtered.rename(columns=final_td_cols, inplace=True)
+        
+        # Merge keys are the same string type
+        df_report['Serial'] = df_report['Serial'].astype(str)
+        df_td_filtered['Serial'] = df_td_filtered['Serial'].astype(str)
+
+        df_report.set_index('Serial', inplace=True)
+        df_td_filtered.set_index('Serial', inplace=True)
+
+        df_report.update(df_td_filtered) # Update in place
+        df_report.reset_index(inplace=True) 
+
+        final_df = df_report # Use the merged DataFrame
+    else:
+        final_df = df_report # Use the XML report as-is if TD data failed to load
+
+    # --- STEP 4: Generate the Final Report ---
+    timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M")
+    report_filename = f'Codeplug-Report_{timestamp}.xlsx'
+    
+    # Pass the final, merged DataFrame to be styled and saved
+    _generate_report(report_filename, final_df, files_with_errors, total_files)
 
 if __name__ == "__main__":
     main()
