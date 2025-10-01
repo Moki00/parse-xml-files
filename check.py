@@ -665,7 +665,7 @@ def _process_check_group(root, group, metadata, serial, model, mobile_hh):
     parents = root.xpath(group['base_xpath'])
 
     if not parents:
-        error_rows.append([serial, metadata['alias'], metadata['gwinnett_id'], "N/A", group_name, "N/A", "Section Missing", "N/A", "N/A", model, mobile_hh, metadata['dekalb_id'], "dekalb", metadata['fulton_id'], "Fulton", metadata['atlanta_id'], "Atlanta", metadata['cobb_id'], "cobb", metadata['hall_id'], "hall", "TD-Gw", "TD-Alias"])
+        error_rows.append([serial, metadata['alias'], metadata['gwinnett_id'], "N/A", group_name, "N/A", "Section Missing", "N/A", "N/A", model, mobile_hh, metadata['dekalb_id'], "", metadata['fulton_id'], "", metadata['atlanta_id'], "", metadata['cobb_id'], "", metadata['hall_id'], "", "TD-Gw", "TD-Alias"])
         return error_rows
 
     for parent in parents:
@@ -683,12 +683,12 @@ def _process_check_group(root, group, metadata, serial, model, mobile_hh):
             field_elements = parent.xpath(f".//Field[@Name='{field_name}']")
 
             if not field_elements:
-                error_rows.append([serial, metadata['alias'], metadata['gwinnett_id'], system_context, group_name, field_name, "Setting Missing", expected_value, "N/A", model, mobile_hh, metadata['dekalb_id'], "dekalb", metadata['fulton_id'], "Fulton", metadata['atlanta_id'], "Atlanta", metadata['cobb_id'], "cobb", metadata['hall_id'], "hall", "TD-Gw", "TD-Alias"])
+                error_rows.append([serial, metadata['alias'], metadata['gwinnett_id'], system_context, group_name, field_name, "Setting Missing", expected_value, "N/A", model, mobile_hh, metadata['dekalb_id'], "", metadata['fulton_id'], "", metadata['atlanta_id'], "", metadata['cobb_id'], "", metadata['hall_id'], "", "TD-Gw", "TD-Alias"])
                 continue
 
             actual_value = field_elements[0].text or ""
             if actual_value != expected_value:
-                error_rows.append([serial, metadata['alias'], metadata['gwinnett_id'], system_context, group_name, field_name, "Incorrect Value", expected_value, actual_value, model, mobile_hh, metadata['dekalb_id'], "dekalb", metadata['fulton_id'], "Fulton", metadata['atlanta_id'], "Atlanta", metadata['cobb_id'], "cobb", metadata['hall_id'], "hall", "TD-Gw", "TD-Alias"])
+                error_rows.append([serial, metadata['alias'], metadata['gwinnett_id'], system_context, group_name, field_name, "Incorrect Value", expected_value, actual_value, model, mobile_hh, metadata['dekalb_id'], "", metadata['fulton_id'], "", metadata['atlanta_id'], "", metadata['cobb_id'], "", metadata['hall_id'], "", "TD-Gw", "TD-Alias"])
                 
     return error_rows
 
@@ -838,7 +838,7 @@ def check_xml_file(filepath, report_rows):
             discrepancies_in_file.extend(talkgroup_errors)
 
         if not discrepancies_in_file:
-            success_row = [serial, metadata['alias'], metadata['gwinnett_id'], "OK", "OK", "OK", "OK", "OK", "OK", model, mobile, metadata['dekalb_id'], "TD-Dek", metadata['fulton_id'], "TD-Ful", metadata['atlanta_id'], "TD-Atl", metadata['cobb_id'], "TD-Cobb", metadata['hall_id'], "TD-Hall" , "TD-Gw", "TD-Alias"]
+            success_row = [serial, metadata['alias'], metadata['gwinnett_id'], "OK", "OK", "OK", "OK", "OK", "OK", model, mobile, metadata['dekalb_id'], "", metadata['fulton_id'], "", metadata['atlanta_id'], "", metadata['cobb_id'], "", metadata['hall_id'], "" , "TD-Gw-ID", "TD-Alias"]
             report_rows.append(success_row)
             return False
         else:
@@ -848,7 +848,7 @@ def check_xml_file(filepath, report_rows):
     except ETREE.XMLSyntaxError:
         # this should not happen due to prior validation
         print(f"Error: Could not parse XML file '{filepath}'.")
-        report_rows.append([os.path.basename(filepath), "Error!", "Alias", "ID", "Setting", "Ref", "Group", "Could not parse XML", "Expect", "Actual", "model", "type", "Dekalb", "TD-Dek","Fulton","TD-Ful","Atlanta","TD-Atl","Cobb", "TD-Cobb", "Hall", "TD-Hall", "TD-Gw", "TD-Alias"])
+        report_rows.append([os.path.basename(filepath), "Error!", "Alias", "ID", "Setting", "Ref", "Group", "Could not parse XML", "Expect", "Actual", "model", "type", "Dekalb", "TD-Dek","Fulton","TD-Ful","Atlanta","TD-Atl","Cobb", "TD-Cobb", "Hall", "TD-Hall", "TD-Gw-ID", "TD-Alias"])
         return True
 
 # Adjust Excel column widths
@@ -934,8 +934,20 @@ def _generate_report(report_filename, df, files_with_errors, total_files):
                     bottom=Side(border_style="thin", color=GRAY)
                 )
 
-                if cell.value == "OK":
+                # if cell.value == "OK":
+                #     cell.fill = green_fill
+
+                # Alias
+                if cell.column == 2 and alias.value == td_alias.value:
                     cell.fill = green_fill
+                elif cell.column == 2 and alias.value != td_alias.value:
+                    cell.fill = red_fill
+
+                # Gwinnett ID
+                if cell.column == 3 and gwinnett_id.value == gwinnett_td_id.value:
+                    cell.fill = green_fill
+                elif cell.column == 3 and gwinnett_id.value != gwinnett_td_id.value:
+                    cell.fill = red_fill
 
                 if cell.column == 7: # Problem = G (7th column)
                     if cell.value == "Section Missing":
@@ -944,6 +956,8 @@ def _generate_report(report_filename, df, files_with_errors, total_files):
                 if cell.column == 9: # Actual Problem = I (9th column)
                     if cell.value != "OK":
                         cell.fill = red_fill
+                    elif cell.value == "OK":
+                        cell.fill = green_fill
 
                 if cell.column == 12 and dekalb_id.value == dekalb_td_id.value:
                     cell.fill = green_fill
@@ -970,15 +984,7 @@ def _generate_report(report_filename, df, files_with_errors, total_files):
                 elif cell.column == 20 and hall_id.value != hall_td_id.value:
                     cell.fill = red_fill
 
-                if cell.column == 3 and gwinnett_id.value == gwinnett_td_id.value:
-                    cell.fill = green_fill
-                elif cell.column == 3 and gwinnett_id.value != gwinnett_td_id.value:
-                    cell.fill = red_fill
-                
-                if cell.column == 2 and alias.value == td_alias.value:
-                    cell.fill = green_fill
-                elif cell.column == 2 and alias.value != td_alias.value:
-                    cell.fill = red_fill
+
 
         worksheet.freeze_panes = "B2" # Freeze top row & first column
 
@@ -1105,7 +1111,7 @@ def main():
 
         final_df = df_report # Use the merged DataFrame
     else:
-        final_df = df_report # Use the XML report as-is if TD data failed to load
+        final_df = df_report # No merge, use original report
 
     # --- STEP 4: Generate the Final Report ---
     timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M")
