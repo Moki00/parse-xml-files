@@ -4,11 +4,19 @@ import lxml.etree as ETREE
 import glob
 import os
 import logging
+import math
 from typing import Dict, List, Any, Optional
 from datetime import datetime
 from openpyxl.utils import column_index_from_string
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from dotenv import load_dotenv
+
+BLACK = '00000000'
+WHITE = '00FFFFFF'
+BLUE = '000000FF'
+GREEN = '38761D'
+RED = '990000'
+GRAY = '00C0C0C0'
 
 # Basic logging to print messages to the console
 logging.basicConfig(
@@ -872,7 +880,41 @@ def adjust_column_width(worksheet):
 
         worksheet.column_dimensions[col_letter].width = max_length + 1.5 #Return padding
 
+####
+# is the cell blank?
+####
+def is_blank(value):
+    if value is None or value == 0:
+        return True
+    try:
+        if math.isnan(value):     # robust NaN check
+            return True
+    except (TypeError, ValueError): # TypeError for non-numeric types
+        pass
+    if isinstance(value, str) and value.strip() == "":
+        return True
+    return False
+
+####
+# fills red or green in the cells based on comparison logic
+####
+def color_fill_logic(cell, value_xml, value_td):
+    green_fill = PatternFill(start_color=GREEN, end_color=GREEN, fill_type="solid") # Green fill
+    red_fill = PatternFill(start_color=RED, end_color=RED, fill_type="solid") # Red fill
+    xml_is_blank = is_blank(value_xml)
+    td_is_blank = is_blank(value_td)
+
+    if not xml_is_blank and not td_is_blank:
+        if str(value_xml).strip() == str(value_td).strip():
+            cell.fill = green_fill  # Match
+        elif value_xml == value_td:
+            cell.fill = green_fill  # Match
+        else:
+            cell.fill = red_fill    # Mismatch
+
+####
 # Generate Excel report
+####
 def _generate_report(report_filename, df, files_with_errors, total_files):
     with pd.ExcelWriter(report_filename, engine='openpyxl') as writer:
     
@@ -881,22 +923,9 @@ def _generate_report(report_filename, df, files_with_errors, total_files):
 
         worksheet = writer.sheets[sheet_name]
 
-        BLACK = '00000000'
-        WHITE = '00FFFFFF'
-        BLUE = '000000FF'
-        GREEN = '38761D'
-        RED = '990000'
-        GRAY = '00C0C0C0'
-    
         black_fill = PatternFill(start_color=BLACK, end_color=BLACK, fill_type="solid") # Black fill
         green_fill = PatternFill(start_color=GREEN, end_color=GREEN, fill_type="solid") # Green fill
         red_fill = PatternFill(start_color=RED, end_color=RED, fill_type="solid") # Red fill
-
-        for row in worksheet.iter_rows(min_row=1, max_row=worksheet.max_row, min_col=1, max_col=16):
-            for cell in row:
-                cell.fill = black_fill
-                cell.font = Font(bold=False, size=11, color=WHITE, name='Arial') # White font
-                cell.alignment = Alignment(horizontal='left', vertical='center')
 
         # Header
         for cell in worksheet[1]:
@@ -904,7 +933,7 @@ def _generate_report(report_filename, df, files_with_errors, total_files):
             cell.fill = PatternFill(start_color=BLUE, end_color=BLUE, fill_type="solid") # Blue fill
             cell.alignment = Alignment(horizontal='center', vertical='center')
 
-        # Data rows with 22 columns
+        # Loop through data rows
         header_length = len(df.columns.tolist())
         for row in worksheet.iter_rows(min_row=2, max_row=worksheet.max_row, min_col=1, max_col=header_length):
 
@@ -934,57 +963,36 @@ def _generate_report(report_filename, df, files_with_errors, total_files):
                     bottom=Side(border_style="thin", color=GRAY)
                 )
 
-                # if cell.value == "OK":
-                #     cell.fill = green_fill
+                if cell.column == 2: # Alias
+                    color_fill_logic(cell, alias.value, td_alias.value)
 
-                # Alias
-                if cell.column == 2 and alias.value == td_alias.value:
-                    cell.fill = green_fill
-                elif cell.column == 2 and alias.value != td_alias.value:
-                    cell.fill = red_fill
+                if cell.column == 3: # Gwinnett ID
+                    color_fill_logic(cell, gwinnett_id.value, gwinnett_td_id.value)
 
-                # Gwinnett ID
-                if cell.column == 3 and gwinnett_id.value == gwinnett_td_id.value:
-                    cell.fill = green_fill
-                elif cell.column == 3 and gwinnett_id.value != gwinnett_td_id.value:
-                    cell.fill = red_fill
-
-                if cell.column == 7: # Problem = G (7th column)
+                if cell.column == 7: # if Section Missing in G=7th column
                     if cell.value == "Section Missing":
                         cell.fill = red_fill
 
-                if cell.column == 9: # Actual Problem = I (9th column)
+                if cell.column == 9: # if Incorrect Value in I=9th column
                     if cell.value != "OK":
                         cell.fill = red_fill
                     elif cell.value == "OK":
                         cell.fill = green_fill
 
-                if cell.column == 12 and dekalb_id.value == dekalb_td_id.value:
-                    cell.fill = green_fill
-                elif cell.column == 12 and dekalb_id.value != dekalb_td_id.value:
-                    cell.fill = red_fill
+                if cell.column == 12: # Dekalb ID
+                    color_fill_logic(cell, dekalb_id.value, dekalb_td_id.value)
 
-                if cell.column == 14 and fulton_id.value == fulton_td_id.value:
-                    cell.fill = green_fill
-                elif cell.column == 14 and fulton_id.value != fulton_td_id.value:
-                    cell.fill = red_fill
+                if cell.column == 14: # Fulton ID
+                    color_fill_logic(cell, fulton_id.value, fulton_td_id.value)
+                
+                if cell.column == 16: # Atlanta ID
+                    color_fill_logic(cell, atlanta_id.value, atlanta_td_id.value)
 
-                if cell.column == 16 and atlanta_id.value == atlanta_td_id.value:
-                    cell.fill = green_fill
-                elif cell.column == 16 and atlanta_id.value != atlanta_td_id.value:
-                    cell.fill = red_fill
+                if cell.column == 18: # Cobb ID
+                    color_fill_logic(cell, cobb_id.value, cobb_td_id.value)
 
-                if cell.column == 18 and cobb_id.value == cobb_td_id.value:
-                    cell.fill = green_fill
-                elif cell.column == 18 and cobb_id.value != cobb_td_id.value:
-                    cell.fill = red_fill
-
-                if cell.column == 20 and hall_id.value == hall_td_id.value:
-                    cell.fill = green_fill
-                elif cell.column == 20 and hall_id.value != hall_td_id.value:
-                    cell.fill = red_fill
-
-
+                if cell.column == 20: # Hall ID
+                    color_fill_logic(cell, hall_id.value, hall_td_id.value)
 
         worksheet.freeze_panes = "B2" # Freeze top row & first column
 
@@ -996,8 +1004,9 @@ def _generate_report(report_filename, df, files_with_errors, total_files):
     except AttributeError:
         print("Open report manually.")
 
-
+###########################
 ###### Main function ######
+###########################
 
 def main():
 
@@ -1090,12 +1099,12 @@ def main():
         final_td_cols = {
             td_col_names['Serial']: 'Serial', # This is the merge key
             td_col_names['Dekalb']: 'TD-Dekalb',
-            td_col_names['Fulton']: 'TD-Fulton', # This needs to go into column 15
-            td_col_names['Atlanta']: 'TD-Atl', # This needs to go into column 17
-            td_col_names['Cobb']: 'TD-Cobb', # This needs to go into column 19
-            td_col_names['Hall']: 'TD-Hall', # This needs to go into column 21
-            td_col_names['Gwinnett']: 'TD-Gw', # This needs to go into column 23
-            td_col_names['Alias']: 'TD-Alias' # This needs to go into column 24
+            td_col_names['Fulton']: 'TD-Fulton', # column 15
+            td_col_names['Atlanta']: 'TD-Atl', # column 17
+            td_col_names['Cobb']: 'TD-Cobb', # column 19
+            td_col_names['Hall']: 'TD-Hall', # column 21
+            td_col_names['Gwinnett']: 'TD-Gw', # column 23
+            td_col_names['Alias']: 'TD-Alias' # column 24
         }
         df_td_filtered.rename(columns=final_td_cols, inplace=True)
         
