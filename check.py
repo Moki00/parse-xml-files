@@ -629,11 +629,11 @@ def _get_model_from_filename(serial):
     elif '7500' in serial_upper:
         return 7500
     else:
-        return 'Is Model in Filename?'
+        return 'Unknown'
     
 def _get_mobile_from_filename(serial):
     serial_upper = serial.upper()
-    if 'MOBILE' in serial_upper or 'MOB' in serial_upper:
+    if 'MOBILE' in serial_upper or 'MOB' in serial_upper or 'CONSOLE' in serial_upper or 'FSA' in serial_upper:
         return 'Mobile'
     elif 'HANDHELD' in serial_upper or 'HH' in serial_upper or 'PORTABLE' in serial_upper:
         return 'Portable'
