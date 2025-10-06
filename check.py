@@ -716,6 +716,11 @@ def check_xml_file(filepath, report_rows):
             mobile = _get_mobile_from_filename(serial)
 
         metadata = _extract_metadata(root)
+        # td_data = f"TD-{serial[-3:]}"
+        # for key in ['dekalb_id', 'hall_id', 'cobb_id', 'atlanta_id', 'fulton_id']:
+        #     if metadata[key] != 0:
+        #         metadata[key] = td_data
+
         discrepancies_in_file = []
         
         for group in CHECKS_TO_PERFORM:
@@ -728,7 +733,7 @@ def check_xml_file(filepath, report_rows):
             discrepancies_in_file.extend(talkgroup_errors)
 
         if not discrepancies_in_file:
-            success_row = [serial, metadata['alias'], metadata['gwinnett_id'], "OK", "OK", "OK", "OK", "OK", "OK", model, mobile, metadata['dekalb_id'], metadata['hall_id'], metadata['cobb_id'], metadata['atlanta_id'], metadata['fulton_id']]
+            success_row = [serial, metadata['alias'], metadata['gwinnett_id'], "OK", "OK", "OK", "OK", "OK", "OK", model, mobile, metadata['dekalb_id'], "fill", metadata['hall_id'], "fill", metadata['cobb_id'], "fill", metadata['atlanta_id'], "fill", metadata['fulton_id'], "fill"]
             report_rows.append(success_row)
             return False
         else:
@@ -764,7 +769,8 @@ def adjust_column_width(worksheet):
 def _generate_report(report_filename, report_rows, files_with_errors, total_files):
     with pd.ExcelWriter(report_filename, engine='openpyxl') as writer:
     
-        header = ['Filename', 'Alias', 'Gw ID', 'Setting','Reference', 'Group','Problem', 'Expected', 'Actual', 'Model', 'Type', 'Dekalb', 'Hall', 'Cobb', 'Atlanta', 'Fulton']
+        # header = ['Filename', 'Alias', 'Gw ID', 'Setting','Reference', 'Group','Problem', 'Expected', 'Actual', 'Model', 'Type', 'Dekalb', 'Hall', 'Cobb', 'Atlanta', 'Fulton']
+        header = ['Filename', 'Alias', 'Gw ID', 'Setting','Reference', 'Group','Problem', 'Expected', 'Actual', 'Model', 'Type', 'Dekalb', 'TD-1F5', 'Fulton', 'TD-5B2', 'Atlanta', 'TD-293', 'Cobb', 'TD-17D', 'Hall', 'TD-1DE']
         df = pd.DataFrame(report_rows, columns=header)
         sheet_name = f'{files_with_errors} of {total_files} files have errors'
         df.to_excel(writer, sheet_name=sheet_name, index=False)
@@ -794,8 +800,8 @@ def _generate_report(report_filename, report_rows, files_with_errors, total_file
             cell.fill = PatternFill(start_color=BLUE, end_color=BLUE, fill_type="solid") # Blue fill
             cell.alignment = Alignment(horizontal='center', vertical='center')
 
-        # Data rows
-        for row in worksheet.iter_rows(min_row=2, max_row=worksheet.max_row, min_col=1, max_col=16):
+        # Data rows with 21 columns
+        for row in worksheet.iter_rows(min_row=2, max_row=worksheet.max_row, min_col=1, max_col=21):
             for cell in row:
                 cell.fill = black_fill
                 cell.font = Font(bold=False, size=11, color=WHITE) # White font for data
@@ -829,6 +835,23 @@ def _generate_report(report_filename, report_rows, files_with_errors, total_file
 
 # Main function
 def main():
+    print("Loading TD.xlsx...")
+
+    # Load TD.xlsx
+    td_file = 'TD.xlsx'
+    df_td = None
+    try:
+        df_td = pd.read_excel(td_file)
+        print("TD.xlsx loaded.")
+    except FileNotFoundError:
+        print(f"Warning: '{td_file}' not found in the current directory.")
+    except ImportError:
+        print("Error: 'openpyxl' library is required to read Excel files.")
+        print("Install it using 'pip install openpyxl'")
+        input("Press Enter to exit...") # hold terminal open
+        return    
+
+    print("Checking XML Codeplugs...")
     xml_files = glob.glob('*.xml') # Find all XML files in folder
     if not xml_files:
         print("No XML Codeplugs in this folder.")
@@ -844,6 +867,7 @@ def main():
 
     # input each row
     for i, filepath in enumerate(xml_files):
+        print(f"Processing file {i+1} of {total_files}: {os.path.basename(filepath)}")
         if check_xml_file(filepath, report_rows):
             files_with_errors += 1
 
