@@ -521,7 +521,14 @@ def _get_unit_id_for_system(root, system_name_contains):
     """
     Returns an integer ID for a Trunking System whose ReferenceKey contains the given name.
     """
-    xpath = f".//Recset[@Name='Trunking System']/Node[contains(@ReferenceKey, '{system_name_contains}')]/Section[@Name='General']/Field[@Name='Unit ID']"
+    # for the translate function
+    upper_abc = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
+    lower_abc = 'abcdefghijklmnopqrstuvwxyz'
+
+    # Convert your search term to lowercase in Python
+    search_term_lower = system_name_contains.lower()
+
+    xpath = f".//Recset[@Name='Trunking System']/Node[contains(translate(@ReferenceKey, '{upper_abc}', '{lower_abc}'), '{search_term_lower}')]/Section[@Name='General']/Field[@Name='Unit ID']"
     
     elements = root.xpath(xpath)
     if elements and elements[0].text:
@@ -550,10 +557,10 @@ def _extract_metadata(root):
     # Extract Unit IDs for each system
     metadata["gwinnett_id"] = _get_unit_id_for_system(root, "GWINNETT")
     metadata["dekalb_id"] = _get_unit_id_for_system(root, "Dekalb")
-    metadata["hall_id"] = _get_unit_id_for_system(root, "HALL")
+    metadata["hall_id"] = _get_unit_id_for_system(root, "Hall")
     metadata["cobb_id"] = _get_unit_id_for_system(root, "UASI")
     metadata["atlanta_id"] = _get_unit_id_for_system(root, "Atlanta")
-    metadata["fulton_id"] = _get_unit_id_for_system(root, "Fulton")
+    metadata["fulton_id"] = _get_unit_id_for_system(root, "FULTON")
 
     return metadata
 
@@ -716,10 +723,6 @@ def check_xml_file(filepath, report_rows):
             mobile = _get_mobile_from_filename(serial)
 
         metadata = _extract_metadata(root)
-        # td_data = f"TD-{serial[-3:]}"
-        # for key in ['dekalb_id', 'hall_id', 'cobb_id', 'atlanta_id', 'fulton_id']:
-        #     if metadata[key] != 0:
-        #         metadata[key] = td_data
 
         discrepancies_in_file = []
         
@@ -733,7 +736,7 @@ def check_xml_file(filepath, report_rows):
             discrepancies_in_file.extend(talkgroup_errors)
 
         if not discrepancies_in_file:
-            success_row = [serial, metadata['alias'], metadata['gwinnett_id'], "OK", "OK", "OK", "OK", "OK", "OK", model, mobile, metadata['dekalb_id'], "fill", metadata['hall_id'], "fill", metadata['cobb_id'], "fill", metadata['atlanta_id'], "fill", metadata['fulton_id'], "fill"]
+            success_row = [serial, metadata['alias'], metadata['gwinnett_id'], "OK", "OK", "OK", "OK", "OK", "OK", model, mobile, metadata['dekalb_id'], "DEK", metadata['fulton_id'], "Fulton", metadata['atlanta_id'], "Atl", metadata['cobb_id'], "17D", metadata['hall_id'], "1DE"]
             report_rows.append(success_row)
             return False
         else:
@@ -741,7 +744,7 @@ def check_xml_file(filepath, report_rows):
             return True
 
     except ET.XMLSyntaxError:
-        report_rows.append([os.path.basename(filepath), "File Error", "Alias", "ID", "Sys", "Group","Could not parse XML", "value", "value", "model", "type", "dekalb_id", "hall_id", "cobb_id", "atlanta_id", "fulton_id"])
+        report_rows.append([os.path.basename(filepath), "File Error", "Alias", "ID", "Sys", "Group","Could not parse XML", "value", "value", "model", "type", "Dekalb", "1F5","Fulton","5B2","Atlanta","293","Cobb", "UASI", "Hall", "1DE", ""])
         return True
 
 # Adjust Excel column widths
@@ -769,7 +772,6 @@ def adjust_column_width(worksheet):
 def _generate_report(report_filename, report_rows, files_with_errors, total_files):
     with pd.ExcelWriter(report_filename, engine='openpyxl') as writer:
     
-        # header = ['Filename', 'Alias', 'Gw ID', 'Setting','Reference', 'Group','Problem', 'Expected', 'Actual', 'Model', 'Type', 'Dekalb', 'Hall', 'Cobb', 'Atlanta', 'Fulton']
         header = ['Filename', 'Alias', 'Gw ID', 'Setting','Reference', 'Group','Problem', 'Expected', 'Actual', 'Model', 'Type', 'Dekalb', 'TD-1F5', 'Fulton', 'TD-5B2', 'Atlanta', 'TD-293', 'Cobb', 'TD-17D', 'Hall', 'TD-1DE']
         df = pd.DataFrame(report_rows, columns=header)
         sheet_name = f'{files_with_errors} of {total_files} files have errors'
