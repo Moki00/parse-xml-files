@@ -536,7 +536,7 @@ def _get_unit_id_for_system(root, system_name_contains):
             return int(elements[0].text.strip())
         except (ValueError, TypeError):
             print(f"Warning: Could not convert Unit ID for '{system_name_contains}' to an integer.")
-    return 0
+    # return nothing if empty or invalid
 
 def _extract_metadata(root):
     metadata={
@@ -564,12 +564,14 @@ def _extract_metadata(root):
 
     return metadata
 
+# display problems
 def _process_check_group(root, group, metadata, serial, model, mobile_hh):
     error_rows = []
     group_name = group['group_name']
     parents = root.xpath(group['base_xpath'])
 
     if not parents:
+        # todo change ids based on system
         error_rows.append([serial, metadata['alias'], metadata['gwinnett_id'], "N/A", group_name, "N/A", "Section Missing", "N/A", "N/A", model, mobile_hh, metadata['dekalb_id'], metadata['hall_id'], metadata['cobb_id'], metadata['atlanta_id'], metadata['fulton_id']])
         return error_rows
 
@@ -584,17 +586,17 @@ def _process_check_group(root, group, metadata, serial, model, mobile_hh):
 
         for field_name, expected_value in group['fields'].items():
             if mobile_hh == 'Mobile' and field_name == 'Top Display Channel':
-                continue # Skip this 'Top Display Channel': field for Mobile devices
+                continue # Skip 'Top Display Channel': field for Mobile or Console radios
             field_elements = parent.xpath(f".//Field[@Name='{field_name}']")
 
             if not field_elements:
-                # print(f"Bad File = {serial}.xml") # See Bad File in terminal
+                # todo change ids based on system
                 error_rows.append([serial, metadata['alias'], metadata['gwinnett_id'], system_context, group_name, field_name, "Setting Missing", expected_value, "N/A", model, mobile_hh, metadata['dekalb_id'], metadata['hall_id'], metadata['cobb_id'], metadata['atlanta_id'], metadata['fulton_id']])
                 continue
 
             actual_value = field_elements[0].text or ""
             if actual_value != expected_value:
-                # print(f"Bad File = {serial}.xml") # See Bad File in terminal
+                # todo change ids based on system
                 error_rows.append([serial, metadata['alias'], metadata['gwinnett_id'], system_context, group_name, field_name, "Incorrect Value", expected_value, actual_value, model, mobile_hh, metadata['dekalb_id'], metadata['hall_id'], metadata['cobb_id'], metadata['atlanta_id'], metadata['fulton_id']])
                 
     return error_rows
@@ -736,7 +738,7 @@ def check_xml_file(filepath, report_rows):
             discrepancies_in_file.extend(talkgroup_errors)
 
         if not discrepancies_in_file:
-            success_row = [serial, metadata['alias'], metadata['gwinnett_id'], "OK", "OK", "OK", "OK", "OK", "OK", model, mobile, metadata['dekalb_id'], "DEK", metadata['fulton_id'], "Fulton", metadata['atlanta_id'], "Atl", metadata['cobb_id'], "17D", metadata['hall_id'], "1DE"]
+            success_row = [serial, metadata['alias'], metadata['gwinnett_id'], "OK", "OK", "OK", "OK", "OK", "OK", model, mobile, metadata['dekalb_id'], "DEK", metadata['fulton_id'], "Fulton", metadata['atlanta_id'], "Atl", metadata['cobb_id'], "17D", metadata['hall_id'], "1DE" , "td-gw"]
             report_rows.append(success_row)
             return False
         else:
@@ -744,7 +746,9 @@ def check_xml_file(filepath, report_rows):
             return True
 
     except ET.XMLSyntaxError:
-        report_rows.append([os.path.basename(filepath), "File Error", "Alias", "ID", "Sys", "Group","Could not parse XML", "value", "value", "model", "type", "Dekalb", "1F5","Fulton","5B2","Atlanta","293","Cobb", "UASI", "Hall", "1DE", ""])
+        # this should not happen due to prior validation
+        print(f"Error: Could not parse XML file '{filepath}'.")
+        report_rows.append([os.path.basename(filepath), "Error!", "Alias", "ID", "Setting", "Ref", "Group", "Could not parse XML", "Expect", "Actual", "model", "type", "Dekalb", "1F5","Fulton","5B2","Atlanta","293","Cobb", "UASI", "Hall", "1DE", ""])
         return True
 
 # Adjust Excel column widths
@@ -772,7 +776,7 @@ def adjust_column_width(worksheet):
 def _generate_report(report_filename, report_rows, files_with_errors, total_files):
     with pd.ExcelWriter(report_filename, engine='openpyxl') as writer:
     
-        header = ['Filename', 'Alias', 'Gw ID', 'Setting','Reference', 'Group','Problem', 'Expected', 'Actual', 'Model', 'Type', 'Dekalb', 'TD-1F5', 'Fulton', 'TD-5B2', 'Atlanta', 'TD-293', 'Cobb', 'TD-17D', 'Hall', 'TD-1DE']
+        header = ['Filename', 'Alias', 'Gw ID', 'Setting','Reference', 'Group','Problem', 'Expected', 'Actual', 'Model', 'Type', 'Dekalb', 'TD-1F5', 'Fulton', 'TD-5B2', 'Atlanta', 'TD-293', 'Cobb', 'TD-17D', 'Hall', 'TD-1DE', 'TD-GW']
         df = pd.DataFrame(report_rows, columns=header)
         sheet_name = f'{files_with_errors} of {total_files} files have errors'
         df.to_excel(writer, sheet_name=sheet_name, index=False)
@@ -802,8 +806,22 @@ def _generate_report(report_filename, report_rows, files_with_errors, total_file
             cell.fill = PatternFill(start_color=BLUE, end_color=BLUE, fill_type="solid") # Blue fill
             cell.alignment = Alignment(horizontal='center', vertical='center')
 
-        # Data rows with 21 columns
-        for row in worksheet.iter_rows(min_row=2, max_row=worksheet.max_row, min_col=1, max_col=21):
+        # Data rows with 22 columns
+        for row in worksheet.iter_rows(min_row=2, max_row=worksheet.max_row, min_col=1, max_col=22):
+
+            dekalb_id = row[11]  # Dekalb TD column (12th column, index 11)
+            dekalb_td_id = row[12] # Dekalb TD column (13th column, index 12)
+            fulton_id = row[13]  # Fulton ID column (14th column, index 13)
+            fulton_td_id = row[14] # Fulton TD column (15th column, index 14)
+            atlanta_id = row[15]  # Atlanta ID column (16th column,
+            atlanta_td_id = row[16] # Atlanta TD column (17th column, index 16)
+            cobb_id = row[17]   # Cobb ID column (18th column, index 17)
+            cobb_td_id = row[18] # Cobb TD column (19th column, index 18)
+            hall_id = row[19]   # Hall ID column (20th column, index 19)
+            hall_td_id = row[20] # Hall TD column (21th column, index
+            gwinnett_td_id = row[21] # Gwinnett TD column (22th column, index 21)
+            gwinnett_id = row[2]  # Gwinnett ID column (3rd column, index 2)
+
             for cell in row:
                 cell.fill = black_fill
                 cell.font = Font(bold=False, size=11, color=WHITE) # White font for data
@@ -821,9 +839,40 @@ def _generate_report(report_filename, report_rows, files_with_errors, total_file
                 if cell.column == 7: # Problem = G (7th column)
                     if cell.value == "Section Missing":
                         cell.fill = red_fill
+
                 if cell.column == 9: # Actual Problem = I (9th column)
                     if cell.value != "OK":
                         cell.fill = red_fill
+
+                if cell.column == 12 and dekalb_id.value == dekalb_td_id.value:
+                    cell.fill = green_fill
+                elif cell.column == 12 and dekalb_id.value != dekalb_td_id.value:
+                    cell.fill = red_fill
+
+                if cell.column == 14 and fulton_id.value == fulton_td_id.value:
+                    cell.fill = green_fill
+                elif cell.column == 14 and fulton_id.value != fulton_td_id.value:
+                    cell.fill = red_fill
+
+                if cell.column == 16 and atlanta_id.value == atlanta_td_id.value:
+                    cell.fill = green_fill
+                elif cell.column == 16 and atlanta_id.value != atlanta_td_id.value:
+                    cell.fill = red_fill
+
+                if cell.column == 18 and cobb_id.value == cobb_td_id.value:
+                    cell.fill = green_fill
+                elif cell.column == 18 and cobb_id.value != cobb_td_id.value:
+                    cell.fill = red_fill
+
+                if cell.column == 20 and hall_id.value == hall_td_id.value:
+                    cell.fill = green_fill
+                elif cell.column == 20 and hall_id.value != hall_td_id.value:
+                    cell.fill = red_fill
+
+                if cell.column == 22 and gwinnett_id.value == gwinnett_td_id.value:
+                    cell.fill = green_fill
+                elif cell.column == 22 and gwinnett_id.value != gwinnett_td_id.value:
+                    cell.fill = red_fill
 
         worksheet.freeze_panes = "B2" # Freeze top row & first column
 
@@ -845,6 +894,7 @@ def main():
     try:
         df_td = pd.read_excel(td_file)
         print("TD.xlsx loaded.")
+        print(df_td.head()) # Display first few rows for verification
     except FileNotFoundError:
         print(f"Warning: '{td_file}' not found in the current directory.")
     except ImportError:
@@ -872,6 +922,26 @@ def main():
         print(f"Processing file {i+1} of {total_files}: {os.path.basename(filepath)}")
         if check_xml_file(filepath, report_rows):
             files_with_errors += 1
+
+    # add data from TD.xlsx to report
+    rows_with_td = []
+    if df_td is not None:
+        for row in report_rows:
+            serial = row[0]
+            td_match = df_td[df_td['Serial Number'] == serial]
+            if not td_match.empty:
+                td_dekalb = td_match.iloc[0].get('(1F5) Dekalb', 'N/A')
+                td_fulton = td_match.iloc[0].get('(5B2) Fulton', 'N/A')
+                td_atlanta = td_match.iloc[0].get('(293) Atlanta', 'N/A')
+                td_cobb = td_match.iloc[0].get('(17D) Cobb', 'N/A')
+                td_hall = td_match.iloc[0].get('(1DE) Hall', 'N/A')
+                td_gwinnett = td_match.iloc[0].get('(027A) Gwinnett', 'N/A')
+                new_row = row[:12] + [td_dekalb, row[13], td_fulton, row[15], td_atlanta, row[17], td_cobb, row[19], td_hall, td_gwinnett]
+                rows_with_td.append(new_row)
+            else:
+                new_row = row + ['no Dekalb', row[13], 'no Fulton', row[15], 'no Atlanta', row[17], 'no Cobb', row[19], 'no Hall', 'no Gwinnett?!']
+                rows_with_td.append(new_row)
+        report_rows = rows_with_td
 
     # Generate report
     _generate_report(report_filename, report_rows, files_with_errors, total_files)
