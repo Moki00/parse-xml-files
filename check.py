@@ -571,8 +571,7 @@ def _process_check_group(root, group, metadata, serial, model, mobile_hh):
     parents = root.xpath(group['base_xpath'])
 
     if not parents:
-        # todo change ids based on system
-        error_rows.append([serial, metadata['alias'], metadata['gwinnett_id'], "N/A", group_name, "N/A", "Section Missing", "N/A", "N/A", model, mobile_hh, metadata['dekalb_id'], metadata['hall_id'], metadata['cobb_id'], metadata['atlanta_id'], metadata['fulton_id']])
+        error_rows.append([serial, metadata['alias'], metadata['gwinnett_id'], "N/A", group_name, "N/A", "Section Missing", "N/A", "N/A", model, mobile_hh, metadata['dekalb_id'], "dekalb", metadata['fulton_id'], "Fulton", metadata['atlanta_id'], "Atlanta", metadata['cobb_id'], "cobb", metadata['hall_id'], "hall"])
         return error_rows
 
     for parent in parents:
@@ -590,14 +589,12 @@ def _process_check_group(root, group, metadata, serial, model, mobile_hh):
             field_elements = parent.xpath(f".//Field[@Name='{field_name}']")
 
             if not field_elements:
-                # todo change ids based on system
-                error_rows.append([serial, metadata['alias'], metadata['gwinnett_id'], system_context, group_name, field_name, "Setting Missing", expected_value, "N/A", model, mobile_hh, metadata['dekalb_id'], metadata['hall_id'], metadata['cobb_id'], metadata['atlanta_id'], metadata['fulton_id']])
+                error_rows.append([serial, metadata['alias'], metadata['gwinnett_id'], system_context, group_name, field_name, "Setting Missing", expected_value, "N/A", model, mobile_hh, metadata['dekalb_id'], "dekalb", metadata['fulton_id'], "Fulton", metadata['atlanta_id'], "Atlanta", metadata['cobb_id'], "cobb", metadata['hall_id'], "hall"])
                 continue
 
             actual_value = field_elements[0].text or ""
             if actual_value != expected_value:
-                # todo change ids based on system
-                error_rows.append([serial, metadata['alias'], metadata['gwinnett_id'], system_context, group_name, field_name, "Incorrect Value", expected_value, actual_value, model, mobile_hh, metadata['dekalb_id'], metadata['hall_id'], metadata['cobb_id'], metadata['atlanta_id'], metadata['fulton_id']])
+                error_rows.append([serial, metadata['alias'], metadata['gwinnett_id'], system_context, group_name, field_name, "Incorrect Value", expected_value, actual_value, model, mobile_hh, metadata['dekalb_id'], "dekalb", metadata['fulton_id'], "Fulton", metadata['atlanta_id'], "Atlanta", metadata['cobb_id'], "cobb", metadata['hall_id'], "hall"])
                 
     return error_rows
 
@@ -894,7 +891,6 @@ def main():
     try:
         df_td = pd.read_excel(td_file)
         print("TD.xlsx loaded.")
-        print(df_td.head()) # Display first few rows for verification
     except FileNotFoundError:
         print(f"Warning: '{td_file}' not found in the current directory.")
     except ImportError:
