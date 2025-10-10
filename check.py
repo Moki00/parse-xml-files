@@ -1,3 +1,4 @@
+import requests
 import pandas as pd
 import lxml.etree as ET
 import glob
@@ -5,6 +6,81 @@ import os
 from datetime import datetime
 from openpyxl.utils import column_index_from_string
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+from dotenv import load_dotenv
+
+# --- Configuration for Sandbox Environment ---
+BASE_URL = "https://support.gwinnettcounty.com/SBTDWebApi"
+AUTH_URL = f"{BASE_URL}/api/auth/login"
+ASSET_APP_ID = 279
+RADIO_ASSET_FORM_ID = 9856
+
+# Credentials for the API service account
+load_dotenv()  # Load environment variables from .env file
+USERNAME = os.getenv("TD_USERNAME")
+PASSWORD = os.getenv("TD_PASSWORD")
+
+def get_auth_token():
+    """Authenticates with the API and returns a bearer token."""
+    print("Attempting to authenticate with the sandbox...")
+
+    if not USERNAME or not PASSWORD:
+        print("❌ Username or password environment variables are not set.")
+        return None
+
+    try:
+        response = requests.post(AUTH_URL, json={"username": USERNAME, "password": PASSWORD})
+        
+        # Check if the request was successful (status code 200)
+        response.raise_for_status() 
+        
+        # The response body is the bearer token string
+        bearer_token = response.text
+        print("✅ Authentication successful!")
+        return bearer_token
+        
+    except requests.exceptions.HTTPError as e:
+        print(f"❌ Authentication failed: {e.response.status_code} {e.response.reason}")
+        if e.response.status_code == 401:
+            print("   Please check that the username and password are correct.")
+        return None
+    except Exception as e:
+        print(f"An unexpected error occurred during authentication: {e}")
+        return None
+
+def get_radio_assets(token):
+    """Fetches all radio assets using the provided auth token."""
+    if not token:
+        return None
+
+    search_url = f"{BASE_URL}/api/{ASSET_APP_ID}/assets/search"
+    
+    # Standard headers for a request that requires a bearer token
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "Content-Type": "application/json"
+    }
+
+    # The search body tells the API to find all assets that use the "Radio Asset Form"
+    search_body = {
+        "FormIds": [RADIO_ASSET_FORM_ID]
+    }
+    
+    print(f"\nFetching all assets with form ID {RADIO_ASSET_FORM_ID}...")
+    try:
+        response = requests.post(search_url, headers=headers, json=search_body)
+        response.raise_for_status()
+        
+        # The response is a JSON list of asset objects
+        assets = response.json()
+        print(f"✅ Retrieved {len(assets)} assets.")
+        return assets
+        
+    except requests.exceptions.HTTPError as e:
+        print(f"❌ Failed to fetch assets: {e.response.status_code} {e.response.reason}")
+        return None
+    except Exception as e:
+        print(f"An unexpected error occurred while fetching assets: {e}")
+        return None
 
 CHECKS_TO_PERFORM = [
 
@@ -540,7 +616,7 @@ def _get_unit_id_for_system(root, system_name_contains):
 
 def _extract_metadata(root):
     metadata={
-        "alias": "",
+        "alias": "Unknown",
         "gwinnett_id": 0,
         "dekalb_id": 0,
         "hall_id": 0,
@@ -881,23 +957,50 @@ def _generate_report(report_filename, report_rows, files_with_errors, total_file
     except AttributeError:
         print("Open report manually.")
 
-# Main function
-def main():
-    print("Loading TD.xlsx...")
 
-    # Load TD.xlsx
-    td_file = 'TD.xlsx'
-    df_td = None
-    try:
-        df_td = pd.read_excel(td_file)
-        print("TD.xlsx loaded.")
-    except FileNotFoundError:
-        print(f"Warning: '{td_file}' not found in the current directory.")
-    except ImportError:
-        print("Error: 'openpyxl' library is required to read Excel files.")
-        print("Install it using 'pip install openpyxl'")
-        input("Press Enter to exit...") # hold terminal open
-        return    
+###### Main function ######
+
+def main():
+
+    print("Motorola Codeplug Checker")
+    print("by Morgan King, Gwinnett County")
+    use_api = True
+    df_td = None # DataFrame for Radio assets from TD
+
+    # Fetch Radio Assets from API
+    print("Fetching Radio Assets from API...")
+    auth_token = get_auth_token()
+    if auth_token:
+        radio_assets = get_radio_assets(auth_token)
+
+        if radio_assets:
+            df_td = pd.DataFrame(radio_assets)
+            print(f"Fetched {len(df_td)} radio assets from API.")
+            df_td.to_excel('RadioAssets.xlsx', index=False)
+            print("Saved radio assets to 'RadioAssets.xlsx'.")
+            print(df_td.head()) # Display first few rows
+        else:
+            use_api = False
+            print("Failed to fetch radio assets from API.")
+    else:
+        use_api = False
+        print("Failed to authenticate with API.")
+
+    # Load TD.xlsx if API fetch not used or failed
+    if not use_api:
+        print("Loading TD.xlsx...")
+        td_file = 'TD.xlsx'
+        
+        try:
+            df_td = pd.read_excel(td_file)
+            print("TD.xlsx loaded.")
+        except FileNotFoundError:
+            print(f"Warning: '{td_file}' not found in the current directory.")
+        except ImportError:
+            print("Error: 'openpyxl' library is required to read Excel files.")
+            print("Install it using 'pip install openpyxl'")
+            input("Press Enter to exit...") # hold terminal open
+            return    
 
     print("Checking XML Codeplugs...")
     xml_files = glob.glob('*.xml') # Find all XML files in folder
@@ -924,7 +1027,10 @@ def main():
     if df_td is not None:
         for row in report_rows:
             serial = row[0]
-            td_match = df_td[df_td['Serial Number'] == serial]
+            if use_api:
+                td_match = df_td[df_td['SerialNumber'] == serial]
+            else:
+                td_match = df_td[df_td['Serial Number'] == serial]
             if not td_match.empty:
                 td_dekalb = td_match.iloc[0].get('(1F5) Dekalb', 'N/A')
                 td_fulton = td_match.iloc[0].get('(5B2) Fulton', 'N/A')
