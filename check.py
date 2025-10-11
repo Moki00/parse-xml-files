@@ -52,6 +52,7 @@ def get_radio_assets(token):
     if not token:
         return None
 
+    # Gets a list of assets. Will not return full asset information.
     search_url = f"{BASE_URL}/api/{ASSET_APP_ID}/assets/search"
     
     # Standard headers for a request that requires a bearer token
@@ -80,6 +81,33 @@ def get_radio_assets(token):
         return None
     except Exception as e:
         print(f"An unexpected error occurred while fetching assets: {e}")
+        return None
+
+def get_asset_details(token, asset_id):
+    """Fetches detailed information for a specific asset by its ID."""
+    if not token:
+        return None
+
+    detail_url = f"{BASE_URL}/api/{ASSET_APP_ID}/assets/{asset_id}"
+    
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "Content-Type": "application/json"
+    }
+    
+    try:
+        response = requests.get(detail_url, headers=headers)
+        response.raise_for_status()
+        
+        # The response is a JSON object with detailed asset information
+        asset_details = response.json()
+        return asset_details
+        
+    except requests.exceptions.HTTPError as e:
+        print(f"❌ Failed to fetch details for asset ID {asset_id}: {e.response.status_code} {e.response.reason}")
+        return None
+    except Exception as e:
+        print(f"An unexpected error occurred while fetching details for asset ID {asset_id}: {e}")
         return None
 
 CHECKS_TO_PERFORM = [
@@ -830,7 +858,7 @@ def adjust_column_width(worksheet):
         max_length = 0
         col_letter = col_cells[0].column_letter
         for cell in col_cells:
-            if cell.value:
+            if cell.value is not None:
                 cell_len = len(str(cell.value))
                 max_length = max(max_length, cell_len)
         
@@ -849,7 +877,7 @@ def adjust_column_width(worksheet):
 def _generate_report(report_filename, report_rows, files_with_errors, total_files):
     with pd.ExcelWriter(report_filename, engine='openpyxl') as writer:
     
-        header = ['Filename', 'Alias', 'Gw ID', 'Setting','Reference', 'Group','Problem', 'Expected', 'Actual', 'Model', 'Type', 'Dekalb', 'TD-1F5', 'Fulton', 'TD-5B2', 'Atlanta', 'TD-293', 'Cobb', 'TD-17D', 'Hall', 'TD-1DE', 'TD-GW']
+        header = ['Filename', 'Alias', 'Gw ID', 'Setting','Reference', 'Group','Problem', 'Expected', 'Actual', 'Model', 'Type', 'Dekalb', 'TD-Dek', 'Fulton', 'TD-Ful', 'Atlanta', 'TD-Atl', 'Cobb', 'TD-Cob', 'Hall', 'TD-Hal', 'TD-Gw']
         df = pd.DataFrame(report_rows, columns=header)
         sheet_name = f'{files_with_errors} of {total_files} files have errors'
         df.to_excel(writer, sheet_name=sheet_name, index=False)
@@ -880,7 +908,7 @@ def _generate_report(report_filename, report_rows, files_with_errors, total_file
             cell.alignment = Alignment(horizontal='center', vertical='center')
 
         # Data rows with 22 columns
-        for row in worksheet.iter_rows(min_row=2, max_row=worksheet.max_row, min_col=1, max_col=22):
+        for row in worksheet.iter_rows(min_row=2, max_row=worksheet.max_row, min_col=1, max_col=len(header)):
 
             dekalb_id = row[11]  # Dekalb TD column (12th column, index 11)
             dekalb_td_id = row[12] # Dekalb TD column (13th column, index 12)
@@ -1025,12 +1053,10 @@ def main():
     # add data from TD.xlsx to report
     rows_with_td = []
     if df_td is not None:
+        serial_col = 'SerialNumber' if use_api else 'Serial Number'
         for row in report_rows:
-            serial = row[0]
-            if use_api:
-                td_match = df_td[df_td['SerialNumber'] == serial]
-            else:
-                td_match = df_td[df_td['Serial Number'] == serial]
+            serial = str(row[0]).strip()
+            td_match = df_td[df_td[serial_col] == serial]
             if not td_match.empty:
                 td_dekalb = td_match.iloc[0].get('(1F5) Dekalb', 'N/A')
                 td_fulton = td_match.iloc[0].get('(5B2) Fulton', 'N/A')
