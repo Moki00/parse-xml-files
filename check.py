@@ -834,7 +834,7 @@ def check_xml_file(filepath, report_rows):
             discrepancies_in_file.extend(talkgroup_errors)
 
         if not discrepancies_in_file:
-            success_row = [serial, metadata['alias'], metadata['gwinnett_id'], "OK", "OK", "OK", "OK", "OK", "OK", model, mobile, metadata['dekalb_id'], "DEK", metadata['fulton_id'], "Fulton", metadata['atlanta_id'], "Atl", metadata['cobb_id'], "17D", metadata['hall_id'], "1DE" , "td-gw"]
+            success_row = [serial, metadata['alias'], metadata['gwinnett_id'], "OK", "OK", "OK", "OK", "OK", "OK", model, mobile, metadata['dekalb_id'], "DEK", metadata['fulton_id'], "Fulton", metadata['atlanta_id'], "Atl", metadata['cobb_id'], "17D", metadata['hall_id'], "1DE" , "td-gw", "TD-Alias"]
             report_rows.append(success_row)
             return False
         else:
@@ -844,7 +844,7 @@ def check_xml_file(filepath, report_rows):
     except ET.XMLSyntaxError:
         # this should not happen due to prior validation
         print(f"Error: Could not parse XML file '{filepath}'.")
-        report_rows.append([os.path.basename(filepath), "Error!", "Alias", "ID", "Setting", "Ref", "Group", "Could not parse XML", "Expect", "Actual", "model", "type", "Dekalb", "1F5","Fulton","5B2","Atlanta","293","Cobb", "UASI", "Hall", "1DE", ""])
+        report_rows.append([os.path.basename(filepath), "Error!", "Alias", "ID", "Setting", "Ref", "Group", "Could not parse XML", "Expect", "Actual", "model", "type", "Dekalb", "1F5","Fulton","5B2","Atlanta","293","Cobb", "UASI", "Hall", "TD-Hal", "TD-Gw", "TD-Alias"])
         return True
 
 # Adjust Excel column widths
@@ -872,7 +872,7 @@ def adjust_column_width(worksheet):
 def _generate_report(report_filename, report_rows, files_with_errors, total_files):
     with pd.ExcelWriter(report_filename, engine='openpyxl') as writer:
     
-        header = ['Filename', 'Alias', 'Gw ID', 'Setting','Reference', 'Group','Problem', 'Expected', 'Actual', 'Model', 'Type', 'Dekalb', 'TD-Dek', 'Fulton', 'TD-Ful', 'Atlanta', 'TD-Atl', 'Cobb', 'TD-Cob', 'Hall', 'TD-Hal', 'TD-Gw']
+        header = ['Filename', 'Alias', 'Gw ID', 'Setting','Reference', 'Group','Problem', 'Expected', 'Actual', 'Model', 'Type', 'Dekalb', 'TD-Dek', 'Fulton', 'TD-Ful', 'Atlanta', 'TD-Atl', 'Cobb', 'TD-Cob', 'Hall', 'TD-Hal', 'TD-Gw', 'TD-Alias']
         df = pd.DataFrame(report_rows, columns=header)
         sheet_name = f'{files_with_errors} of {total_files} files have errors'
         df.to_excel(writer, sheet_name=sheet_name, index=False)
@@ -915,8 +915,10 @@ def _generate_report(report_filename, report_rows, files_with_errors, total_file
             cobb_td_id = row[18] # Cobb TD column (19th column, index 18)
             hall_id = row[19]   # Hall ID column (20th column, index 19)
             hall_td_id = row[20] # Hall TD column (21th column, index
-            gwinnett_td_id = row[21] # Gwinnett TD column (22th column, index 21)
             gwinnett_id = row[2]  # Gwinnett ID column (3rd column, index 2)
+            gwinnett_td_id = row[21] # Gwinnett TD column (22th column, index 21)
+            alias = row[1]  # Alias column (2nd column, index 1)
+            td_alias = row[22] # TD-Gw column (23th column, index 22)
 
             for cell in row:
                 cell.fill = black_fill
@@ -965,9 +967,14 @@ def _generate_report(report_filename, report_rows, files_with_errors, total_file
                 elif cell.column == 20 and hall_id.value != hall_td_id.value:
                     cell.fill = red_fill
 
-                if cell.column == 22 and gwinnett_id.value == gwinnett_td_id.value:
+                if cell.column == 3 and gwinnett_id.value == gwinnett_td_id.value:
                     cell.fill = green_fill
-                elif cell.column == 22 and gwinnett_id.value != gwinnett_td_id.value:
+                elif cell.column == 3 and gwinnett_id.value != gwinnett_td_id.value:
+                    cell.fill = red_fill
+                
+                if cell.column == 2 and alias.value == td_alias.value:
+                    cell.fill = green_fill
+                elif cell.column == 2 and alias.value != td_alias.value:
                     cell.fill = red_fill
 
         worksheet.freeze_panes = "B2" # Freeze top row & first column
@@ -1059,10 +1066,11 @@ def main():
                 td_cobb = td_match.iloc[0].get('(17D) Cobb', 'N/A')
                 td_hall = td_match.iloc[0].get('(1DE) Hall', 'N/A')
                 td_gwinnett = td_match.iloc[0].get('(027A) Gwinnett', 'N/A')
-                new_row = row[:12] + [td_dekalb, row[13], td_fulton, row[15], td_atlanta, row[17], td_cobb, row[19], td_hall, td_gwinnett]
+                td_alias = td_match.iloc[0].get('Radio User Alias', 'N/A')
+                new_row = row[:12] + [td_dekalb, row[13], td_fulton, row[15], td_atlanta, row[17], td_cobb, row[19], td_hall, td_gwinnett, td_alias]
                 rows_with_td.append(new_row)
             else:
-                new_row = row + ['no Dekalb', row[13], 'no Fulton', row[15], 'no Atlanta', row[17], 'no Cobb', row[19], 'no Hall', 'no Gwinnett?!']
+                new_row = row + ['no Dekalb', row[13], 'no Fulton', row[15], 'no Atlanta', row[17], 'no Cobb', row[19], 'no Hall', 'no Gwinnett', 'no Alias']
                 rows_with_td.append(new_row)
         report_rows = rows_with_td
 
