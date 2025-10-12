@@ -702,27 +702,22 @@ def _process_check_group(root, group, metadata, serial, model, mobile_hh):
                 
     return error_rows
 
+SERIAL_PREFIX_MAP = {
+    '426': (4000, 'Portable'),
+    '481': (6000, 'Portable'),
+    '527': (6500, 'Mobile'),
+    '579': (8000, 'Portable'),
+    '652': (6500, 'Mobile'),
+    '681': (8500, 'Mobile'),
+    '755': (6500, 'Portable'),
+    '756': (6000, 'Portable'),
+    '761': (7500, 'Mobile'),
+}
+
 def _get_model_and_mobile_from_serial(serial):
-    if serial.startswith('426'):
-        return 4000, 'Portable'
-    elif serial.startswith('481'):
-        return 6000, 'Portable'
-    elif serial.startswith('527'):
-        return 6500, 'Mobile'
-    elif serial.startswith('579'):
-        return 8000, 'Portable'
-    elif serial.startswith('652'):
-        return 8000, 'Mobile'
-    elif serial.startswith('681'):
-        return 8500, 'Mobile'
-    elif serial.startswith('755'):
-        return 6500, 'Portable'
-    elif serial.startswith('756'):
-        return 6000, 'Portable'
-    elif serial.startswith('761'):
-        return 7500, 'Mobile'
-    else:
-        return 0, 'Is Serial Correct?'
+    default = (0, 'Is Serial Correct?')
+    prefix = serial[:3]
+    return SERIAL_PREFIX_MAP.get(prefix, default)
 
 def _get_model_from_filename(serial):
     serial_upper = serial.upper()
