@@ -1,114 +1,104 @@
 import requests
 import pandas as pd
-import lxml.etree as ET
+import lxml.etree as ETREE
 import glob
 import os
+import logging
+from typing import Dict, List, Any, Optional
 from datetime import datetime
 from openpyxl.utils import column_index_from_string
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from dotenv import load_dotenv
 
-# --- Configuration for Sandbox Environment ---
-BASE_URL = "https://support.gwinnettcounty.com/SBTDWebApi"
-AUTH_URL = f"{BASE_URL}/api/auth/login"
-ASSET_APP_ID = 279
-RADIO_ASSET_FORM_ID = 9856
+# Basic logging to print messages to the console
+logging.basicConfig(
+    level=logging.INFO, 
+    format='%(asctime)s - %(levelname)s - %(message)s'
+)
 
-# Credentials for the API service account
-load_dotenv()  # Load environment variables from .env file
-USERNAME = os.getenv("TD_USERNAME")
-PASSWORD = os.getenv("TD_PASSWORD")
+load_dotenv()  # Load variables from .env file
 
-def get_auth_token():
-    """Authenticates with the API and returns a bearer token."""
-    print("Attempting to authenticate with the sandbox...")
+class TeamDynamixSandboxClient:
+    """A client for interacting with the TeamDynamix Sandbox Web API."""
 
-    if not USERNAME or not PASSWORD:
-        print("❌ Username or password environment variables are not set.")
-        return None
-
-    try:
-        response = requests.post(AUTH_URL, json={"username": USERNAME, "password": PASSWORD})
-        
-        # Check if the request was successful (status code 200)
-        response.raise_for_status() 
-        
-        # The response body is the bearer token string
-        bearer_token = response.text
-        print("✅ Authentication successful!")
-        return bearer_token
-        
-    except requests.exceptions.HTTPError as e:
-        print(f"❌ Authentication failed: {e.response.status_code} {e.response.reason}")
-        if e.response.status_code == 401:
-            print("   Please check that the username and password are correct.")
-        return None
-    except Exception as e:
-        print(f"An unexpected error occurred during authentication: {e}")
-        return None
-
-def get_radio_assets(token):
-    """Fetches all radio assets using the provided auth token."""
-    if not token:
-        return None
-
-    # Gets a list of assets. Will not return full asset information.
-    search_url = f"{BASE_URL}/api/{ASSET_APP_ID}/assets/search"
+    def __init__(self, base_url: str, asset_app_id: int):
+        """Initializes the client with the base URL and asset app ID."""
+        self.base_url = base_url
+        self.asset_app_id = asset_app_id
+        self.session = requests.Session()
+        self.session.headers.update({"Content-Type": "application/json"})
     
-    # Standard headers for a request that requires a bearer token
-    headers = {
-        "Authorization": f"Bearer {token}",
-        "Content-Type": "application/json"
-    }
+    def authenticate(self, username, password) -> bool:
+        """Authenticates with the API and stores the token in the session headers."""
+        AUTH_URL = f"{self.base_url}/api/auth/login"
+        logging.info("Attempting to authenticate...")
 
-    # The search body tells the API to find all assets that use the "Radio Asset Form"
-    search_body = {
-        "FormIds": [RADIO_ASSET_FORM_ID]
-    }
-    
-    print(f"\nFetching all assets with form ID {RADIO_ASSET_FORM_ID}...")
-    try:
-        response = requests.post(search_url, headers=headers, json=search_body)
-        response.raise_for_status()
-        
-        # The response is a JSON list of asset objects
-        assets = response.json()
-        print(f"✅ Retrieved {len(assets)} assets.")
-        return assets
-        
-    except requests.exceptions.HTTPError as e:
-        print(f"❌ Failed to fetch assets: {e.response.status_code} {e.response.reason}")
-        return None
-    except Exception as e:
-        print(f"An unexpected error occurred while fetching assets: {e}")
-        return None
+        if not username or not password:
+            logging.error("Username or password environment variables are not set.")
+            return False
 
-def get_asset_details(token, asset_id):
-    """Fetches detailed information for a specific asset by its ID."""
-    if not token:
-        return None
-
-    detail_url = f"{BASE_URL}/api/{ASSET_APP_ID}/assets/{asset_id}"
-    
-    headers = {
-        "Authorization": f"Bearer {token}",
-        "Content-Type": "application/json"
-    }
-    
-    try:
-        response = requests.get(detail_url, headers=headers)
-        response.raise_for_status()
+        try:
+            response = self.session.post(AUTH_URL, json={"username": username, "password": password})
+            response.raise_for_status()  # Raises HTTPError for bad responses (4xx or 5xx)
+            
+            bearer_token = response.text
+            # Set the auth header for all subsequent requests in this session
+            self.session.headers.update({"Authorization": f"Bearer {bearer_token}"})
+            
+            logging.info("✅ Authentication successful!")
+            return True
+            
+        except requests.exceptions.HTTPError as e:
+            logging.error(f"Authentication failed: {e.response.status_code} {e.response.reason}")
+            if e.response.status_code == 401:
+                logging.error("-> Please check that the username and password are correct.")
+            return False
+        except Exception as e:
+            logging.error(f"An unexpected error occurred during authentication: {e}")
+            return False
         
-        # The response is a JSON object with detailed asset information
-        asset_details = response.json()
-        return asset_details
+    def get_all_assets(self, form_id: int) -> Optional[List[Dict[str, Any]]]:
+        """Fetches a list of all assets that use a specific form."""
+        search_url = f"{self.base_url}/api/{self.asset_app_id}/assets/search"
+        search_body = {"FormIds": [form_id]}
         
-    except requests.exceptions.HTTPError as e:
-        print(f"❌ Failed to fetch details for asset ID {asset_id}: {e.response.status_code} {e.response.reason}")
-        return None
-    except Exception as e:
-        print(f"An unexpected error occurred while fetching details for asset ID {asset_id}: {e}")
-        return None
+        logging.info(f"Fetching all assets with form ID {form_id}...")
+        try:
+            response = self.session.post(search_url, json=search_body)
+            response.raise_for_status()
+            
+            # The response is a JSON list of asset objects
+            assets = response.json()
+            logging.info(f"✅ Retrieved {len(assets)} assets.")
+            return assets
+            
+        except requests.exceptions.HTTPError as e:
+            logging.error(f"Failed to fetch assets: {e.response.status_code} {e.response.reason}")
+            return None
+        except Exception as e:
+            logging.error(f"An unexpected error occurred while fetching assets: {e}")
+            return None
+    
+    def get_asset_details(self, asset_id: int) -> Optional[Dict[str, Any]]:
+        """Fetches detailed information for a specific asset by its ID."""
+        detail_url = f"{self.base_url}/api/{self.asset_app_id}/assets/{asset_id}"
+        
+        logging.info(f"Fetching details for asset ID {asset_id}...")
+        try:
+            response = self.session.get(detail_url)
+            response.raise_for_status()
+            
+            # The response is a JSON object with detailed asset information
+            asset_details = response.json()
+            logging.info(f"✅ Retrieved details for asset ID {asset_id}.")
+            return asset_details
+            
+        except requests.exceptions.HTTPError as e:
+            logging.error(f"Failed to fetch details for asset ID {asset_id}: {e.response.status_code} {e.response.reason}")
+            return None
+        except Exception as e:
+            logging.error(f"An unexpected error occurred while fetching details for asset ID {asset_id}: {e}")
+            return None
 
 CHECKS_TO_PERFORM = [
 
@@ -808,8 +798,8 @@ def _validate_talkgroup_match(root, metadata, filename):
 # Check XML file
 def check_xml_file(filepath, report_rows):
     try:
-        parser = ET.XMLParser(remove_blank_text=True, resolve_entities=False)
-        tree = ET.parse(filepath, parser)
+        parser = ETREE.XMLParser(remove_blank_text=True, resolve_entities=False)
+        tree = ETREE.parse(filepath, parser)
         root = tree.getroot()
         filename = os.path.basename(filepath)
         serial = filename.removesuffix('.xml')
@@ -841,7 +831,7 @@ def check_xml_file(filepath, report_rows):
             report_rows.extend(discrepancies_in_file)
             return True
 
-    except ET.XMLSyntaxError:
+    except ETREE.XMLSyntaxError:
         # this should not happen due to prior validation
         print(f"Error: Could not parse XML file '{filepath}'.")
         report_rows.append([os.path.basename(filepath), "Error!", "Alias", "ID", "Setting", "Ref", "Group", "Could not parse XML", "Expect", "Actual", "model", "type", "Dekalb", "1F5","Fulton","5B2","Atlanta","293","Cobb", "UASI", "Hall", "TD-Hal", "TD-Gw", "TD-Alias"])
@@ -999,9 +989,17 @@ def main():
 
     # Fetch Radio Assets from API
     print("Fetching Radio Assets from API...")
-    auth_token = get_auth_token()
-    if auth_token:
-        radio_assets = get_radio_assets(auth_token)
+    # --- Configuration for Sandbox Environment ---
+    BASE_URL = "https://support.gwinnettcounty.com/SBTDWebApi"
+    ASSET_APP_ID = 279
+    RADIO_ASSET_FORM_ID = 9856
+    USERNAME = os.getenv("TD_USERNAME")
+    PASSWORD = os.getenv("TD_PASSWORD")
+
+    client = TeamDynamixSandboxClient(base_url=BASE_URL, asset_app_id=ASSET_APP_ID)
+
+    if client.authenticate(username=USERNAME, password=PASSWORD):
+        radio_assets = client.get_all_assets(form_id=RADIO_ASSET_FORM_ID)
 
         if radio_assets:
             df_td = pd.DataFrame(radio_assets)
