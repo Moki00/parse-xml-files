@@ -987,9 +987,9 @@ def main():
     use_api = True
     df_td = None # DataFrame for Radio assets from TD
 
-    # Fetch Radio Assets from API
+    # --- API ---
+    # todo get_asset_details 
     print("Fetching Radio Assets from API...")
-    # --- Configuration for Sandbox Environment ---
     BASE_URL = "https://support.gwinnettcounty.com/SBTDWebApi"
     ASSET_APP_ID = 279
     RADIO_ASSET_FORM_ID = 9856
