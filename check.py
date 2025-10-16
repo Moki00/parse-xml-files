@@ -665,7 +665,7 @@ def _process_check_group(root, group, metadata, serial, model, mobile_hh):
     parents = root.xpath(group['base_xpath'])
 
     if not parents:
-        error_rows.append([serial, metadata['alias'], metadata['gwinnett_id'], "N/A", group_name, "N/A", "Section Missing", "N/A", "N/A", model, mobile_hh, metadata['dekalb_id'], "dekalb", metadata['fulton_id'], "Fulton", metadata['atlanta_id'], "Atlanta", metadata['cobb_id'], "cobb", metadata['hall_id'], "hall"])
+        error_rows.append([serial, metadata['alias'], metadata['gwinnett_id'], "N/A", group_name, "N/A", "Section Missing", "N/A", "N/A", model, mobile_hh, metadata['dekalb_id'], "dekalb", metadata['fulton_id'], "Fulton", metadata['atlanta_id'], "Atlanta", metadata['cobb_id'], "cobb", metadata['hall_id'], "hall", "TD-Gw", "TD-Alias"])
         return error_rows
 
     for parent in parents:
@@ -683,12 +683,12 @@ def _process_check_group(root, group, metadata, serial, model, mobile_hh):
             field_elements = parent.xpath(f".//Field[@Name='{field_name}']")
 
             if not field_elements:
-                error_rows.append([serial, metadata['alias'], metadata['gwinnett_id'], system_context, group_name, field_name, "Setting Missing", expected_value, "N/A", model, mobile_hh, metadata['dekalb_id'], "dekalb", metadata['fulton_id'], "Fulton", metadata['atlanta_id'], "Atlanta", metadata['cobb_id'], "cobb", metadata['hall_id'], "hall"])
+                error_rows.append([serial, metadata['alias'], metadata['gwinnett_id'], system_context, group_name, field_name, "Setting Missing", expected_value, "N/A", model, mobile_hh, metadata['dekalb_id'], "dekalb", metadata['fulton_id'], "Fulton", metadata['atlanta_id'], "Atlanta", metadata['cobb_id'], "cobb", metadata['hall_id'], "hall", "TD-Gw", "TD-Alias"])
                 continue
 
             actual_value = field_elements[0].text or ""
             if actual_value != expected_value:
-                error_rows.append([serial, metadata['alias'], metadata['gwinnett_id'], system_context, group_name, field_name, "Incorrect Value", expected_value, actual_value, model, mobile_hh, metadata['dekalb_id'], "dekalb", metadata['fulton_id'], "Fulton", metadata['atlanta_id'], "Atlanta", metadata['cobb_id'], "cobb", metadata['hall_id'], "hall"])
+                error_rows.append([serial, metadata['alias'], metadata['gwinnett_id'], system_context, group_name, field_name, "Incorrect Value", expected_value, actual_value, model, mobile_hh, metadata['dekalb_id'], "dekalb", metadata['fulton_id'], "Fulton", metadata['atlanta_id'], "Atlanta", metadata['cobb_id'], "cobb", metadata['hall_id'], "hall", "TD-Gw", "TD-Alias"])
                 
     return error_rows
 
@@ -752,10 +752,11 @@ def _validate_talkgroup_match(root, metadata, filename):
     'Talkgroup Alias Text' and 'ReferenceKey'
     Returns a list of error rows if any mismatches are found.
     """
-    error_rows = []    
-    talkgroup_definitions = {} # 1. Build a map of all defined Talkgroup Aliases.
-    definition_nodes = root.xpath(".//Recset[@Name='ASTRO Talkgroup List']//EmbeddedNode[@Name='Talkgroup Table']")
+    error_rows = []
 
+    # 1. Build a map of all defined Talkgroup Aliases.
+    talkgroup_definitions = {}
+    definition_nodes = root.xpath(".//Recset[@Name='ASTRO Talkgroup List']//EmbeddedNode[@Name='Talkgroup Table']")
     for node in definition_nodes:
         ref_key = node.get('ReferenceKey') #  Key = ReferenceKey, Value = Alias Text.
         alias_text_elements = node.xpath(".//Field[@Name='Talkgroup Alias Text']")
@@ -772,7 +773,7 @@ def _validate_talkgroup_match(root, metadata, filename):
 
         # Does the used ID exist as a key, and does its value also match?
         if talkgroup_definitions.get(used_id) == used_id:
-            continue  # This is the success case: all three strings match.
+            continue  # success case: all three strings match.
 
         # Something is wrong if we reach here
         context_node = field.xpath("ancestor::*[@ReferenceKey][1]")
@@ -788,9 +789,22 @@ def _validate_talkgroup_match(root, metadata, filename):
             actual = talkgroup_definitions.get(used_id, "Not Found")
         
         error_rows.append([
-            filename, metadata['alias'], metadata['gwinnett_id'], context_key, 
-            "Talkgroup Consistency", f"ASTRO Talkgroup ID: {used_id}", 
-            issue, expected, actual
+            filename,
+            metadata['alias'],
+            metadata['gwinnett_id'],
+            metadata['model'],
+            metadata['type'],
+            metadata['dekalb_id'],
+            metadata['fulton_id'],
+            metadata['atlanta_id'],
+            metadata['cobb_id'],
+            metadata['hall_id'],
+            context_key,                        #System Context
+            "Talkgroup Consistency",            #Group Name
+            f"ASTRO Talkgroup ID: {used_id}",   #Setting Name
+            issue,
+            expected,
+            actual
         ])
     
     return error_rows
@@ -863,6 +877,7 @@ def _generate_report(report_filename, report_rows, files_with_errors, total_file
     with pd.ExcelWriter(report_filename, engine='openpyxl') as writer:
     
         header = ['Filename', 'Alias', 'Gw ID', 'Setting','Reference', 'Group','Problem', 'Expected', 'Actual', 'Model', 'Type', 'Dekalb', 'TD-Dek', 'Fulton', 'TD-Ful', 'Atlanta', 'TD-Atl', 'Cobb', 'TD-Cob', 'Hall', 'TD-Hal', 'TD-Gw', 'TD-Alias']
+        # This is where the error occurs:
         df = pd.DataFrame(report_rows, columns=header)
         sheet_name = f'{files_with_errors} of {total_files} files have errors'
         df.to_excel(writer, sheet_name=sheet_name, index=False)
@@ -990,7 +1005,8 @@ def main():
     # --- API ---
     # todo get_asset_details 
     print("Fetching Radio Assets from API...")
-    BASE_URL = "https://support.gwinnettcounty.com/SBTDWebApi"
+    # BASE_URL = "https://support.gwinnettcounty.com/SBTDWebApi"
+    BASE_URL = "https---breakingThisOnPurpose.com/SBTDWebApi" # Prevent accidental API calls during testing
     ASSET_APP_ID = 279
     RADIO_ASSET_FORM_ID = 9856
     USERNAME = os.getenv("TD_USERNAME")
