@@ -1,3 +1,4 @@
+import collections
 import requests
 import pandas as pd
 import lxml.etree as ETREE
@@ -5,7 +6,7 @@ import glob
 import os
 import logging
 import math
-from typing import Dict, List, Any, Optional
+from typing import Dict, List, Any, Optional, Set
 from datetime import datetime
 from openpyxl.utils import column_index_from_string
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
@@ -180,14 +181,12 @@ CHECKS_TO_PERFORM = [
             'Rx / TA DPL Invert':'False',
             'Rx / TA  Network ID':'659',
             'Direct / Talkaround':'False',
-            'Direct Squelch Type':'PL',
             'Direct PL Freq':'67.0',
             'Direct PL Code':'XZ',
             'Tx Deviation / Channel Spacing': '4 kHz / 20 kHz',
             'Name':'8CALL90',
             'Direct Network ID':'659',
             'User Selectable PL [MPL]':'Disabled',
-            'Direct Frequency (MHz)':'851.012500',
             'Direct DPL Code':'023',
             'Direct DPL Invert':'False',
         }
@@ -214,15 +213,12 @@ CHECKS_TO_PERFORM = [
             'Rx / TA DPL Code':'023',
             'Rx / TA DPL Invert':'False',
             'Rx / TA  Network ID':'659',
-            # 'Direct / Talkaround':'True',
-            'Direct Squelch Type':'PL',
             'Direct PL Freq':'67.0',
             'Direct PL Code':'XZ',
             'Tx Deviation / Channel Spacing': '4 kHz / 20 kHz',
             'Name':'8CALL90D',
             'Direct Network ID':'659',
             'User Selectable PL [MPL]':'Disabled',
-            'Direct Frequency (MHz)':'851.012500',
             'Direct DPL Code':'023',
             'Direct DPL Invert':'False',
         }
@@ -250,14 +246,12 @@ CHECKS_TO_PERFORM = [
             'Rx / TA DPL Invert':'False',
             'Rx / TA  Network ID':'659',
             'Direct / Talkaround':'False',
-            'Direct Squelch Type':'PL',
             'Direct PL Freq':'67.0',
             'Direct PL Code':'XZ',
             'Tx Deviation / Channel Spacing': '4 kHz / 20 kHz',
             'Name':'8TAC91',
             'Direct Network ID':'659',
             'User Selectable PL [MPL]':'Disabled',
-            'Direct Frequency (MHz)':'851.512500',
             'Direct DPL Code':'023',
             'Direct DPL Invert':'False',
         }
@@ -284,14 +278,12 @@ CHECKS_TO_PERFORM = [
             'Rx / TA DPL Code':'023',
             'Rx / TA DPL Invert':'False',
             'Rx / TA  Network ID':'659',
-            'Direct Squelch Type':'PL',
             'Direct PL Freq':'67.0',
             'Direct PL Code':'XZ',
             'Tx Deviation / Channel Spacing': '4 kHz / 20 kHz',
             'Name':'8TAC91D',
             'Direct Network ID':'659',
             'User Selectable PL [MPL]':'Disabled',
-            'Direct Frequency (MHz)':'851.512500',
             'Direct DPL Code':'023',
             'Direct DPL Invert':'False',
         }
@@ -319,14 +311,12 @@ CHECKS_TO_PERFORM = [
             'Rx / TA DPL Invert':'False',
             'Rx / TA  Network ID':'659',
             'Direct / Talkaround':'False',
-            'Direct Squelch Type':'PL',
             'Direct PL Freq':'67.0',
             'Direct PL Code':'XZ',
             'Tx Deviation / Channel Spacing': '4 kHz / 20 kHz',
             'Name':'8TAC92',
             'Direct Network ID':'659',
             'User Selectable PL [MPL]':'Disabled',
-            'Direct Frequency (MHz)':'852.012500',
             'Direct DPL Code':'023',
             'Direct DPL Invert':'False',
         }
@@ -353,15 +343,12 @@ CHECKS_TO_PERFORM = [
             'Rx / TA DPL Code':'023',
             'Rx / TA DPL Invert':'False',
             'Rx / TA  Network ID':'659',
-            # 'Direct / Talkaround':'True',
-            'Direct Squelch Type':'PL',
             'Direct PL Freq':'67.0',
             'Direct PL Code':'XZ',
             'Tx Deviation / Channel Spacing': '4 kHz / 20 kHz',
             'Name':'8TAC92D',
             'Direct Network ID':'659',
             'User Selectable PL [MPL]':'Disabled',
-            'Direct Frequency (MHz)':'852.012500',
             'Direct DPL Code':'023',
             'Direct DPL Invert':'False',
         }
@@ -390,14 +377,12 @@ CHECKS_TO_PERFORM = [
             'Rx / TA DPL Invert':'False',
             'Rx / TA  Network ID':'659',
             'Direct / Talkaround':'False',
-            'Direct Squelch Type':'PL',
             'Direct PL Freq':'67.0',
             'Direct PL Code':'XZ',
             'Tx Deviation / Channel Spacing': '4 kHz / 20 kHz',
             'Name':'8TAC93',
             'Direct Network ID':'659',
             'User Selectable PL [MPL]':'Disabled',
-            'Direct Frequency (MHz)':'852.512500',
             'Direct DPL Code':'023',
             'Direct DPL Invert':'False',
         }
@@ -425,15 +410,12 @@ CHECKS_TO_PERFORM = [
             'Rx / TA DPL Code':'023',
             'Rx / TA DPL Invert':'False',
             'Rx / TA  Network ID':'659',
-            # 'Direct / Talkaround':'True',
-            'Direct Squelch Type':'PL',
             'Direct PL Freq':'67.0',
             'Direct PL Code':'XZ',
             'Tx Deviation / Channel Spacing': '4 kHz / 20 kHz',
             'Name':'8TAC93D',
             'Direct Network ID':'659',
             'User Selectable PL [MPL]':'Disabled',
-            'Direct Frequency (MHz)':'852.512500',
             'Direct DPL Code':'023',
             'Direct DPL Invert':'False',
         }
@@ -461,14 +443,12 @@ CHECKS_TO_PERFORM = [
             'Rx / TA DPL Invert':'False',
             'Rx / TA  Network ID':'659',
             'Direct / Talkaround':'False',
-            'Direct Squelch Type':'PL',
             'Direct PL Freq':'67.0',
             'Direct PL Code':'XZ',
             'Tx Deviation / Channel Spacing': '4 kHz / 20 kHz',
             'Name':'8TAC94',
             'Direct Network ID':'659',
             'User Selectable PL [MPL]':'Disabled',
-            'Direct Frequency (MHz)':'853.012500',
             'Direct DPL Code':'023',
             'Direct DPL Invert':'False',
         }
@@ -495,15 +475,12 @@ CHECKS_TO_PERFORM = [
             'Rx / TA DPL Code':'023',
             'Rx / TA DPL Invert':'False',
             'Rx / TA  Network ID':'659',
-            # 'Direct / Talkaround':'True',
-            'Direct Squelch Type':'PL',
             'Direct PL Freq':'67.0',
             'Direct PL Code':'XZ',
             'Tx Deviation / Channel Spacing': '4 kHz / 20 kHz',
             'Name':'8TAC94D',
             'Direct Network ID':'659',
             'User Selectable PL [MPL]':'Disabled',
-            'Direct Frequency (MHz)':'853.012500',
             'Direct DPL Code':'023',
             'Direct DPL Invert':'False',
         }
@@ -700,6 +677,8 @@ def _process_check_group(root, group, metadata, serial, model, mobile_hh):
                 
     return error_rows
 
+# ModelInfo = collections.namedtuple('ModelInfo', ['model', 'mobile'])
+
 SERIAL_PREFIX_MAP = {
     '426': (4000, 'Portable'),
     '481': (6000, 'Portable'),
@@ -707,7 +686,7 @@ SERIAL_PREFIX_MAP = {
     '579': (8000, 'Portable'),
     '652': (6500, 'Mobile'),
     '681': (8500, 'Mobile'),
-    '755': (6500, 'Portable'),
+    '755': (6000, 'Portable'),
     '756': (6000, 'Portable'),
     '761': (7500, 'Mobile'),
 }
@@ -718,18 +697,17 @@ def _get_model_and_mobile_from_serial(serial):
     return SERIAL_PREFIX_MAP.get(prefix, default)
 
 def _get_model_from_filename(serial):
-    serial_upper = serial.upper()
-    if '4000' in serial_upper:
+    if '4000' in serial:
         return 4000
-    elif '6000' in serial_upper:
+    elif '6000' in serial:
         return 6000
-    elif '6500' in serial_upper:
+    elif '6500' in serial:
         return 6500
-    elif '8000' in serial_upper:
+    elif '8000' in serial:
         return 8000
-    elif '8500' in serial_upper:
+    elif '8500' in serial:
         return 8500
-    elif '7500' in serial_upper:
+    elif '7500' in serial:
         return 7500
     else:
         return 'Unknown'
