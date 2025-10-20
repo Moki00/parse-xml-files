@@ -19,6 +19,10 @@ GREEN = '38761D'
 RED = '990000'
 GRAY = '00C0C0C0'
 
+# define alphabet for case-insensitive search
+UPPER_ABC = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
+LOWER_ABC = 'abcdefghijklmnopqrstuvwxyz'
+
 # Basic logging to print messages to the console
 logging.basicConfig(
     level=logging.INFO, 
@@ -118,7 +122,7 @@ CHECKS_TO_PERFORM = [
     # -- Phase 2 Voice Capable --
     {
         'group_name': 'Phase 2 Voice Capable',
-        'base_xpath': ".//Recset[@Name='Trunking System']/Node[contains(@ReferenceKey, 'GWINNETT')]/Section[@Name='ASTRO 25']",
+        'base_xpath': f".//Recset[@Name='Trunking System']/Node[contains(translate(@ReferenceKey, '{UPPER_ABC}', '{LOWER_ABC}'), 'gwinnett')]/Section[@Name='ASTRO 25']",
         'context_node_name': 'Trunking System',
         'fields': {
             'Phase 2 Voice Capable': 'True'
@@ -600,14 +604,11 @@ def _get_unit_id_for_system(root, system_name_contains):
     """
     Returns an integer ID for a Trunking System whose ReferenceKey contains the given name.
     """
-    # for the translate function
-    upper_abc = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
-    lower_abc = 'abcdefghijklmnopqrstuvwxyz'
 
     # Convert your search term to lowercase in Python
     search_term_lower = system_name_contains.lower()
 
-    xpath = f".//Recset[@Name='Trunking System']/Node[contains(translate(@ReferenceKey, '{upper_abc}', '{lower_abc}'), '{search_term_lower}')]/Section[@Name='General']/Field[@Name='Unit ID']"
+    xpath = f".//Recset[@Name='Trunking System']/Node[contains(translate(@ReferenceKey, '{UPPER_ABC}', '{LOWER_ABC}'), '{search_term_lower}')]/Section[@Name='General']/Field[@Name='Unit ID']"
     
     elements = root.xpath(xpath)
     if elements and elements[0].text:
