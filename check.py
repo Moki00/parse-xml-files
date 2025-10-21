@@ -587,6 +587,7 @@ CHECKS_TO_PERFORM = [
     # -- 8CALL90 Channel--
     {
         'group_name': 'INTEROP - 8CALL90',
+        # 'base_xpath': f".//Recset[@Name='Zone Channel Assignment']/Node[contains(translate(@ReferenceKey, '{UPPER_ABC}', '{LOWER_ABC}'), 'interop')]/Section[@Name='ASTRO 25']",
         'base_xpath': ".//Recset[@Name='Zone Channel Assignment']/Node[contains(@ReferenceKey, 'INTEROP')]//EmbeddedNode[@ReferenceKey='7-8CALL90']",
         'context_node_name': 'Zone Channel Assignment',
         'fields': {

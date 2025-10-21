@@ -18,6 +18,6 @@ script will:
 
 ## To make a new .exe file:
 
-1. delete old build and dist
-
-2. run "pyinstaller --onefile check.py"
+1. delete old build and dist folder
+2. delete check.spec
+3. run "pyinstaller --onefile check.py"
