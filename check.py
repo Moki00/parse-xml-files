@@ -587,12 +587,11 @@ CHECKS_TO_PERFORM = [
     # -- 8CALL90 Channel--
     {
         'group_name': 'INTEROP - 8CALL90',
-        # 'base_xpath': f".//Recset[@Name='Zone Channel Assignment']/Node[contains(translate(@ReferenceKey, '{UPPER_ABC}', '{LOWER_ABC}'), 'interop')]/Section[@Name='ASTRO 25']",
-        'base_xpath': ".//Recset[@Name='Zone Channel Assignment']/Node[contains(@ReferenceKey, 'INTEROP')]//EmbeddedNode[@ReferenceKey='7-8CALL90']",
+        'base_xpath': f".//Recset[@Name='Zone Channel Assignment']/Node[contains(translate(@ReferenceKey, '{UPPER_ABC}', '{LOWER_ABC}'), 'interop')]//EmbeddedNode[@ReferenceKey='7-8CALL90']",
         'context_node_name': 'Zone Channel Assignment',
         'fields': {
             'Channel Type': 'Cnv',
-            'Personality': '8TAC',
+            'Personality': ['800 ANALOG','8TAC'], # acceptable list
             'Channel Name': '8CALL90',
             'Top Display Channel': '8CALL90',
             'Active Channel': 'True'
@@ -666,7 +665,7 @@ def _process_check_group(root, group, metadata, serial, model, mobile_hh):
 
         for field_name, expected_value in group['fields'].items():
             if mobile_hh == 'Mobile' and field_name == 'Top Display Channel':
-                continue # Skip 'Top Display Channel': field for Mobile or Console radios
+                continue # Skip 'Top Display Channel' for Mobile or Console radios
             field_elements = parent.xpath(f".//Field[@Name='{field_name}']")
 
             if not field_elements:
@@ -674,8 +673,21 @@ def _process_check_group(root, group, metadata, serial, model, mobile_hh):
                 continue
 
             actual_value = field_elements[0].text or ""
-            if actual_value != expected_value:
-                error_rows.append([serial, metadata['alias'], metadata['gwinnett_id'], system_context, group_name, field_name, "Incorrect Value", expected_value, actual_value, model, mobile_hh, metadata['dekalb_id'], "", metadata['fulton_id'], "", metadata['atlanta_id'], "", metadata['cobb_id'], "", metadata['hall_id'], "", "TD-Gw", "TD-Alias"])
+            is_valid = False
+            expected_value_joined = ""
+
+            # if the expected value is a list, check if actual value is in the list
+            if isinstance(expected_value, list):
+                if actual_value in expected_value:
+                    is_valid = True
+                expected_value_joined = " or ".join(expected_value)
+            else:
+                expected_value_joined = str(expected_value)
+                if actual_value == expected_value:
+                    is_valid = True
+
+            if not is_valid:
+                error_rows.append([serial, metadata['alias'], metadata['gwinnett_id'], system_context, group_name, field_name, "Incorrect Value", expected_value_joined, actual_value, model, mobile_hh, metadata['dekalb_id'], "", metadata['fulton_id'], "", metadata['atlanta_id'], "", metadata['cobb_id'], "", metadata['hall_id'], "", "TD-Gw", "TD-Alias"])
                 
     return error_rows
 
